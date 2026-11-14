@@ -1,7 +1,7 @@
 /**
- * use-side-questions.ts：侧问面板的状态管理 Hook（加载、轮询、SSE 快照、提问与取消）。
- * 主要函数/类型：
- *   - useSideQuestions / SideQuestions：管理侧问列表、草稿、流式更新的 Hook 及其返回类型
+ * use-side-questions.ts: state-management hook for the side-question panel (load, poll, SSE snapshot, ask, cancel).
+ * Main functions/types:
+ *   - useSideQuestions / SideQuestions: hook managing side-question list, drafts, and streaming updates, plus its return type
  */
 "use client";
 
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { sseUrl } from "@/lib/api";
 import { isBtwCommand, type SideExchange, type SideHistory, sideAPI } from "@/lib/side-questions";
 
-// crypto.randomUUID 仅在安全上下文可用(https/localhost);经 IP+http 访问时降级。
+// crypto.randomUUID is only available in secure contexts (https/localhost); degraded when accessed over IP+http.
 function newSideRequestID(): string {
   return (
     globalThis.crypto?.randomUUID?.() ?? `btw-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
@@ -143,7 +143,7 @@ export function useSideQuestions(parent: string | null) {
         restoreFailedDraft([item]);
         if (item.status !== "running") stream.close();
       } catch {
-        setError("旁路数据解析失败，请重新打开面板");
+        setError("Failed to parse side-question data — please reopen the panel");
       }
     });
     stream.addEventListener("cleared", () => {

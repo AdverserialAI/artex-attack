@@ -1,6 +1,6 @@
 /**
- * skeleton.tsx：shadcn/ui 的 Skeleton 骨架屏占位组件封装。
- * 主要组件：Skeleton。
+ * skeleton.tsx: shadcn/ui Skeleton placeholder component wrapper.
+ * Main components: Skeleton.
  */
 import { cn } from "@/lib/utils"
 

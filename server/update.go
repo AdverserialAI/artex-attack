@@ -12,9 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
-	"runtime"
 	"sync"
 	"time"
 
@@ -208,132 +206,26 @@ func (h *updateHub) subscribe() (<-chan updateProgress, func()) {
 	}
 }
 
-// updateCheck 查询 GitHub 上的最新正式版并与当前版本比较。
-//
-// 前端也会直连 api.github.com（GitHub 的 CORS 是 *），但**以本接口为准**：
-// 下载是后端做的，只有后端能访问 GitHub 才谈得上更新。浏览器能连、服务器连不上
-// 的情况很常见（服务器在内网、或代理只配在浏览器上），那时点更新必然失败，
-// 不如在检查这一步就如实报错。
+// updateCheck reports the locally disabled update policy without contacting GitHub.
 func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
-	current := BuildVersion
-	mode := "binary"
-	if selfupdate.InDocker() {
-		mode = "docker"
-	}
-	boot := bootUpdateState()
-	out := map[string]any{
-		"current":     current,
-		"mode":        mode,
-		"os":          runtime.GOOS,
-		"arch":        runtime.GOARCH,
-		"has_backup":  selfupdate.HasBackup(),
-		"repo":        selfupdate.Repo,
-		"boot_notice": boot.Detail,
-		"rolled_back": boot.RolledBack,
-	}
-
-	// 顶栏提示走缓存（默认）；用户点"检查更新"时带 force=1 强制回源。
-	force := r.URL.Query().Get("force") != ""
-	client := selfupdate.NewClient(s.m.GlobalProxy())
-	rel, err := relCache.get(r.Context(), client, force)
-	if err != nil {
-		out["error"] = err.Error()
-		writeJSON(w, 200, out)
-		return
-	}
-
-	latest := rel.TagName
-	out["latest"] = latest
-	out["notes"] = rel.Body
-	out["html_url"] = rel.HTMLURL
-	if !rel.PublishedAt.IsZero() {
-		out["published_at"] = rel.PublishedAt.Format(time.RFC3339)
-	}
-
-	asset := selfupdate.AssetName(latest, runtime.GOOS, runtime.GOARCH)
-	out["asset"] = asset
-	if a, ok := rel.FindAsset(asset); ok {
-		out["asset_available"] = true
-		out["size"] = a.Size
-	} else {
-		out["asset_available"] = false
-	}
-
-	cmp, comparable := selfupdate.CompareVersions(current, latest)
-	out["comparable"] = comparable
-	out["has_update"] = comparable && cmp < 0
-	if !comparable {
-		// 开发构建（dev / git describe 带后缀）没有可比较的版本号。放行只会
-		// 用正式版覆盖掉本地正在调试的二进制，所以直接不给更新。
-		out["reason"] = fmt.Sprintf("当前版本 %q 不是正式发布版本，已禁用一键更新", current)
-	}
-	writeJSON(w, 200, out)
+	// Self-update is disabled in this distribution: the upstream release repo is
+	// gone and updates are shipped by redeploying the container image. Never
+	// contact the legacy update endpoint — answer from local state only.
+	writeJSON(w, 200, map[string]any{
+		"disabled": true,
+		"current":  BuildVersion,
+		"reason":   "Self-update is disabled in this build; updates are managed by redeploying the container image.",
+	})
 }
 
-// updateApply 下载并暂存新版本，完成后让进程退出交给守护脚本重启。
-//
-// 立刻返回 202，实际工作在后台 goroutine 上跑：整包下载可能要几分钟，
-// 挂在请求上会被反代超时掐断。进度走 /api/update/stream。
+// updateApply rejects legacy self-update requests; container redeployment is the update path.
 func (s *Server) updateApply(w http.ResponseWriter, r *http.Request) {
-	current := BuildVersion
-
-	// 走缓存：确保装上的就是用户在界面上看到并确认的那个版本。
-	client := selfupdate.NewClient(s.m.GlobalProxy())
-	rel, err := relCache.get(r.Context(), client, false)
-	if err != nil {
-		writeErr(w, 502, err.Error())
-		return
-	}
-	cmp, comparable := selfupdate.CompareVersions(current, rel.TagName)
-	if !comparable {
-		writeErr(w, 400, fmt.Sprintf("当前版本 %q 不是正式发布版本，已禁用一键更新", current))
-		return
-	}
-	if cmp >= 0 {
-		writeErr(w, 400, fmt.Sprintf("当前已是最新版本 %s", current))
-		return
-	}
-	if !updHub.begin(rel.TagName) {
-		writeErr(w, 409, "已有一个更新正在进行中")
-		return
-	}
-
-	go func() {
-		// 刻意用 s.ctx 而不是请求的 ctx：HTTP 响应一返回请求就结束了，
-		// 挂在它上面下载会立刻被取消。
-		err := selfupdate.Stage(s.ctx, client, rel, current, func(ph selfupdate.Phase, pct int, msg string) {
-			updHub.publish(ph, pct, msg)
-		})
-		updHub.finish(err)
-		if err != nil {
-			log.Printf("[update] 更新失败：%v", err)
-			return
-		}
-		log.Printf("[update] %s → %s 已暂存，即将退出以完成换装", current, rel.TagName)
-		// 留一点时间把最后一条进度推给前端，再触发退出。
-		time.Sleep(1500 * time.Millisecond)
-		requestRestart()
-	}()
-
-	writeJSON(w, 202, map[string]any{"ok": true, "target": rel.TagName})
+	writeErr(w, 403, "Self-update is disabled in this build; redeploy the container image to update.")
 }
 
-// updateRollback 主动退回上一版本（换装前备份的 artex.old）。
+// updateRollback rejects legacy rollback requests; container redeployment is the rollback path.
 func (s *Server) updateRollback(w http.ResponseWriter, r *http.Request) {
-	if _, running := updHub.snapshot(); running {
-		writeErr(w, 409, "更新正在进行中，无法回滚")
-		return
-	}
-	if err := selfupdate.Rollback(); err != nil {
-		writeErr(w, 400, err.Error())
-		return
-	}
-	log.Printf("[update] 已手动回滚到上一版本，即将退出以完成切换")
-	writeJSON(w, 202, map[string]any{"ok": true})
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		requestRestart()
-	}()
+	writeErr(w, 403, "Self-update is disabled in this build; redeploy the container image to roll back.")
 }
 
 // updateStream 以 SSE 推送更新进度。

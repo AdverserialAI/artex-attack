@@ -1,8 +1,8 @@
 // Proxy disabled.
 // Rename this file to `proxy.ts` to enable it.
-// 主要函数/类型：
-//   - proxy：禁用的代理占位实现（重命名文件后启用）
-//   - config：匹配全部路由的 matcher 示例
+// Main functions/types:
+//   - proxy: disabled proxy placeholder implementation (rename the file to enable)
+//   - config: example matcher matching all routes
 import { type NextRequest, NextResponse } from "next/server";
 
 /**

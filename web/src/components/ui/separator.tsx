@@ -1,6 +1,6 @@
 /**
- * separator.tsx：shadcn/ui 的 Separator 分隔线组件封装。
- * 主要组件：Separator。
+ * separator.tsx: shadcn/ui Separator component wrapper.
+ * Main components: Separator.
  */
 "use client"
 

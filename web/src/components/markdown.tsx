@@ -1,7 +1,7 @@
 /**
- * markdown.tsx：ReactMarkdown 封装，提供 Tailwind 样式的 GFM 元素渲染覆盖。
- * 主要函数/类型：
- *   - Markdown：Markdown 渲染组件
+ * markdown.tsx: ReactMarkdown wrapper providing Tailwind-styled GFM element render overrides.
+ * Main functions/types:
+ *   - Markdown: Markdown renderer component
  */
 "use client";
 

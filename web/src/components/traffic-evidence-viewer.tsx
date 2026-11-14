@@ -1,8 +1,8 @@
 /**
- * traffic-evidence-viewer.tsx：流量证据查看对话框，展示绑定流量的请求/响应报文及原始内容。
- * 主要函数/类型：
- *   - TrafficEvidenceViewer：漏洞证据绑定查看对话框（按 bindingId 加载）
- *   - CapturedTrafficViewer：按 id 查看单条已捕获流量的对话框
+ * traffic-evidence-viewer.tsx: traffic evidence viewer dialog; shows the request/response messages and raw content of bound traffic.
+ * Main functions/types:
+ *   - TrafficEvidenceViewer: finding evidence-binding viewer dialog (loads by bindingId)
+ *   - CapturedTrafficViewer: dialog for viewing a single captured traffic record by id
  */
 "use client";
 
@@ -77,9 +77,9 @@ export function TrafficEvidenceViewer({
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>流量证据 #{bindingId}</DialogTitle>
+          <DialogTitle>Traffic evidence #{bindingId}</DialogTitle>
           <DialogDescription className="break-all">
-            {detail?.binding.snapshot.url ?? "查看绑定时保存的请求与响应"}
+            {detail?.binding.snapshot.url ?? "View the request and response saved at binding time"}
           </DialogDescription>
         </DialogHeader>
         {error ? (
@@ -89,14 +89,14 @@ export function TrafficEvidenceViewer({
         ) : detail ? (
           <Tabs defaultValue="request">
             <TabsList>
-              <TabsTrigger value="request">请求 Request</TabsTrigger>
-              <TabsTrigger value="response">响应 Response</TabsTrigger>
+              <TabsTrigger value="request">Request</TabsTrigger>
+              <TabsTrigger value="response">Response</TabsTrigger>
             </TabsList>
             {(["request", "response"] as const).map((side) => (
               <TabsContent key={side} value={side}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">
-                    正文 {detail[side].total.toLocaleString()} 字节{detail[side].truncated ? " · 当前为预览" : ""}
+                    Body: {detail[side].total.toLocaleString()} bytes{detail[side].truncated ? " · preview" : ""}
                   </span>
                   <Button
                     variant="outline"
@@ -107,7 +107,7 @@ export function TrafficEvidenceViewer({
                         .catch((e: Error) => toast.error(e.message))
                     }
                   >
-                    下载完整{side === "request" ? "请求" : "响应"}正文
+                    Download full {side === "request" ? "request" : "response"} body
                   </Button>
                 </div>
                 <HttpCodeBlock
@@ -115,7 +115,7 @@ export function TrafficEvidenceViewer({
                 />
                 {detail[side].truncated && !detail[side].binary ? (
                   <Button variant="outline" size="sm" disabled={busy} onClick={() => void more(side)}>
-                    加载更多正文
+                    Load more body
                   </Button>
                 ) : null}
               </TabsContent>
@@ -158,8 +158,8 @@ export function CapturedTrafficViewer({ id, onClose }: { id: string | null; onCl
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>预览流量</DialogTitle>
-          <DialogDescription>流量 ID：{id}。绑定时会保存完整正文。</DialogDescription>
+          <DialogTitle>Traffic preview</DialogTitle>
+          <DialogDescription>Traffic ID: {id}. The full body is saved when bound.</DialogDescription>
         </DialogHeader>
         {error ? (
           <Alert variant="destructive">
@@ -168,8 +168,8 @@ export function CapturedTrafficViewer({ id, onClose }: { id: string | null; onCl
         ) : detail ? (
           <Tabs defaultValue="request">
             <TabsList>
-              <TabsTrigger value="request">请求 Request</TabsTrigger>
-              <TabsTrigger value="response">响应 Response</TabsTrigger>
+              <TabsTrigger value="request">Request</TabsTrigger>
+              <TabsTrigger value="response">Response</TabsTrigger>
             </TabsList>
             <TabsContent value="request">
               <HttpCodeBlock raw={detail.req} />

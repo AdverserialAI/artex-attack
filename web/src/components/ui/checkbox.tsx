@@ -1,6 +1,6 @@
 /**
- * checkbox.tsx：shadcn/ui 的 Checkbox 复选框组件封装。
- * 主要组件：Checkbox。
+ * checkbox.tsx: shadcn/ui Checkbox component wrapper.
+ * Main components: Checkbox.
  */
 "use client"
 

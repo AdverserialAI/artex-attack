@@ -1,7 +1,7 @@
 /**
- * local-storage.client.ts：浏览器端 localStorage 的安全读写封装。
- * 主要函数/类型：
- *   - setLocalStorageValue / getLocalStorageValue：带异常兜底的写入与读取
+ * local-storage.client.ts: safe browser-side localStorage read/write wrapper.
+ * Main functions/types:
+ *   - setLocalStorageValue / getLocalStorageValue: write and read with exception fallback
  */
 "use client";
 

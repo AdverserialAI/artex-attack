@@ -1,6 +1,6 @@
 /**
- * chart.tsx：shadcn/ui 基于 recharts 的图表组件封装。
- * 主要类型/组件：ChartConfig（图表配置类型）、ChartContainer、ChartTooltip、
+ * chart.tsx: shadcn/ui chart component wrapper built on recharts.
+ * Main types/components: ChartConfig (chart config type), ChartContainer, ChartTooltip,
  *   ChartTooltipContent、ChartLegend、ChartLegendContent、ChartStyle。
  */
 "use client"

@@ -1,13 +1,13 @@
-// tasks 域：health/auth、任务 CRUD/审核/分类/三类模板、统计与拓扑、目标与约束、
-// 任务级资产拦截规则、scope、workspace 文件、资产与企业、exploration（发现/流量证据/
-// 活动/会话）以及 audit/traffic 观测端点。
+// tasks domain: health/auth, task CRUD/review/categories/three template kinds, stats and topology, goals and constraints,
+// task-level asset intercept rules, scope, workspace files, assets and companies, exploration (findings/traffic evidence/
+// activity/conversations), and audit/traffic observation endpoints.
 /**
- * 主要函数/类型：
- *   - tasksApi / TasksApi：tasks 域 API 聚合对象及其类型
- *   - auth/health：登录与健康检查
- *   - tasks/stats 方法组：任务 CRUD、审核、分类、三类模板、统计与拓扑
- *   - 目标/约束/任务级资产拦截规则方法组：总览管理端点
- *   - scope/workspace/assets/companies/exploration/traffic/audit 方法组：资产范围、工作区文件、资产企业、探索会话与观测端点
+ * Main functions/types:
+ *   - tasksApi / TasksApi: tasks-domain API aggregate object and its type
+ *   - auth/health: login and health check
+ *   - tasks/stats method group: task CRUD, review, categories, three template kinds, stats, and topology
+ *   - goals/constraints/task-level asset intercept rule method groups: overview management endpoints
+ *   - scope/workspace/assets/companies/exploration/traffic/audit method groups: asset scope, workspace files, assets/companies, exploration sessions, and observation endpoints
  */
 
 import { arr, del, findingFilterParams, get, getToken, http, patch, post, put, tq } from "@/lib/api/http";
@@ -84,7 +84,7 @@ import type {
 } from "@/lib/types";
 
 export const tasksApi = {
-  // 后端应用版本号（release 时由 ldflags 注入，默认当前版本号）。
+  // Backend application version (injected via ldflags at release; defaults to the current version).
   health: () => get<{ ok: boolean; service: string; version: string }>("/health"),
 
   // ---- auth ----
@@ -111,16 +111,16 @@ export const tasksApi = {
     planHeartbeatSeconds?: number;
     coverageEnabled?: boolean;
     interceptRules?: AssetInterceptRuleInput[];
-    // 【二开·P-INTENT·U1】起 —— createTask 四新字段透传（00 册 S7）
-    preAgent?: string; // 种子意图预选执行器 executor_key（配合 seedFirstIntent）
-    plannerPrompt?: string; // planner 提示词全文快照（≤32KB；同传 plannerTemplateId 时本字段优先 K22）
-    plannerTemplateId?: number; // 仅模板 id：后端取正文快照（03 册 S13）
-    workerPrompt?: string; // Worker 提示词全文快照；优先于 workerTemplateId
-    workerTemplateId?: number; // Worker 模板 id：创建时保存正文快照
-    workerCount?: number; // 任务级 worker 池：0=跟随全局，1~16 专属
-    reviewEnabled?: boolean; // 【二开·P-REVIEW·D2c】任务级意图审核总开关（m03934；默认关）
-    assetMode?: string; // 【二开·P-REVIEW·D12】资产图模式（m04039；空=分类带出）
-    // 【二开·P-INTENT·U1】止
+    // [fork P-INTENT U1] begin — createTask passthrough of the four new fields (vol 00 S7)
+    preAgent?: string; // preselected executor_key for the seed intent (works with seedFirstIntent)
+    plannerPrompt?: string; // full planner prompt snapshot (≤32KB; takes precedence over plannerTemplateId, K22)
+    plannerTemplateId?: number; // template id only: the backend snapshots its body (vol 03 S13)
+    workerPrompt?: string; // full Worker prompt snapshot; takes precedence over workerTemplateId
+    workerTemplateId?: number; // Worker template id: body snapshot saved at creation
+    workerCount?: number; // task-level worker pool: 0 = follow global, 1–16 dedicated
+    reviewEnabled?: boolean; // [fork P-REVIEW D2c] task-level intent review master switch (m03934; default off)
+    assetMode?: string; // [fork P-REVIEW D12] asset graph mode (m04039; empty = inherited from category)
+    // [fork P-INTENT U1] end
   }) =>
     post<Task>("/tasks", {
       name: input.name ?? "",
@@ -132,31 +132,31 @@ export const tasksApi = {
       company_ids: input.companyIds ?? [],
       timeout_seconds: input.timeoutSeconds ?? 0,
       seed_first_intent: input.seedFirstIntent ?? false,
-      plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // 0 = 后端归一到默认 600(10min)
-      coverage_enabled: input.coverageEnabled ?? true, // 默认开;false=关闭资产覆盖度功能
-      intercept_rules: input.interceptRules ?? [], // 任务级资产拦截规则
-      // 【二开·P-INTENT·U1】透传四新字段（00 册 S7）
-      // biome-ignore lint/nursery/useNullishCoalescing: 空字符串需归一为 undefined（省略字段），?? 会保留空串。
+      plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // 0 = backend normalizes to the 600s (10min) default
+      coverage_enabled: input.coverageEnabled ?? true, // default on; false disables the asset-coverage feature
+      intercept_rules: input.interceptRules ?? [], // task-level asset intercept rules
+      // [fork P-INTENT U1] passthrough of the four new fields (vol 00 S7)
+      // biome-ignore lint/nursery/useNullishCoalescing: empty strings must normalize to undefined (field omitted); ?? would keep them.
       pre_agent: input.preAgent || undefined,
-      // biome-ignore lint/nursery/useNullishCoalescing: 空字符串需归一为 undefined（省略字段），?? 会保留空串。
+      // biome-ignore lint/nursery/useNullishCoalescing: empty strings must normalize to undefined (field omitted); ?? would keep them.
       planner_prompt: input.plannerPrompt || undefined,
-      // biome-ignore lint/nursery/useNullishCoalescing: 空字符串需归一为 undefined（省略字段），?? 会保留空串。
+      // biome-ignore lint/nursery/useNullishCoalescing: empty strings must normalize to undefined (field omitted); ?? would keep them.
       planner_template_id: input.plannerTemplateId || undefined,
-      // biome-ignore lint/nursery/useNullishCoalescing: 空字符串需归一为 undefined（省略字段），?? 会保留空串。
+      // biome-ignore lint/nursery/useNullishCoalescing: empty strings must normalize to undefined (field omitted); ?? would keep them.
       worker_prompt: input.workerPrompt || undefined,
-      // biome-ignore lint/nursery/useNullishCoalescing: 空字符串需归一为 undefined（省略字段），?? 会保留空串。
+      // biome-ignore lint/nursery/useNullishCoalescing: empty strings must normalize to undefined (field omitted); ?? would keep them.
       worker_template_id: input.workerTemplateId || undefined,
       worker_count: input.workerCount ?? 0,
-      review_enabled: input.reviewEnabled ?? false, // 【二开·P-REVIEW·D2c】
-      // biome-ignore lint/nursery/useNullishCoalescing: 空字符串需归一为 undefined（省略字段），?? 会保留空串。
-      asset_mode: input.assetMode || undefined, // 【二开·P-REVIEW·D12】
+      review_enabled: input.reviewEnabled ?? false, // [fork P-REVIEW D2c]
+      // biome-ignore lint/nursery/useNullishCoalescing: empty strings must normalize to undefined (field omitted); ?? would keep them.
+      asset_mode: input.assetMode || undefined, // [fork P-REVIEW D12]
     }),
-  // 【二开·P-INTENT·U1】起 —— 审核五端点（00 册 U1；01 册 S6）
+  // [fork P-INTENT U1] begin — the five review endpoints (vol 00 U1; vol 01 S6)
   reviewProposed: (taskId: string) =>
     get<{ intents: ReviewProposedIntent[] }>(`/tasks/${taskId}/review/proposed`).then((r) => arr(r.intents)),
   reviewApprove: (taskId: string, intentId: number, expectedVersion?: number) =>
-    // 审核流 PR3/§8：executor 不再由批准面板选择（预选在送审/修订时确定，批准时后端转正）；
-    // expected_version 以列表返回的 content_version 为准做 CAS，undefined=不校验（兼容旧行为）。
+    // Review flow PR3/§8: the executor is no longer chosen from the approval panel (preselected at submit/revise time, promoted by the backend on approval);
+    // expected_version uses the content_version returned by the list for CAS; undefined = no check (legacy behavior).
     post<{ ok: boolean }>(`/tasks/${taskId}/review/${intentId}/approve`, {
       expected_version: expectedVersion ?? null,
     }),
@@ -169,7 +169,7 @@ export const tasksApi = {
     post<{ accepted: boolean }>(`/tasks/${taskId}/review/chat`, { message }),
   reviewMessages: (taskId: string) =>
     get<{ messages: ReviewMessage[] }>(`/tasks/${taskId}/review/messages`).then((r) => arr(r.messages)),
-  // 【二开·P-INTENT·U1】止
+  // [fork P-INTENT U1] end
   taskCategories: () => get<{ categories: TaskCategory[] }>("/task-categories").then((r) => arr(r.categories)),
   updateTask: (
     id: string,
@@ -193,12 +193,12 @@ export const tasksApi = {
           seed_executor?: string;
         },
   ) =>
-    // 【二开·P-REVIEW·D12】兼容字符串（仅改名）与对象（改名+预设包，m04039）
+    // [fork P-REVIEW D12] accepts both a string (rename only) and an object (rename + preset bundle, m04039)
     patch<TaskCategory>(`/task-categories/${id}`, typeof input === "string" ? { name: input } : input),
   deleteTaskCategory: (id: number) => del<{ deleted: number }>(`/task-categories/${id}`),
   updateTaskCategory: (taskId: string, categoryId?: number) =>
     patch<Task>(`/tasks/${taskId}/category`, { category_id: categoryId ?? null }),
-  // categoryId 省略/undefined = 移出分类（后端收到 null）
+  // categoryId omitted/undefined = remove from the category (the backend receives null)
   updateTasksCategory: (taskIds: string[], categoryId?: number) =>
     post<{ items: BatchCategoryItem[]; category: TaskCategory | null }>("/tasks/category/batch", {
       task_ids: taskIds,
@@ -213,7 +213,7 @@ export const tasksApi = {
     input: Partial<Pick<TaskTemplate, "name" | "description" | "goal" | "category_id" | "intercept_rules">>,
   ) => patch<TaskTemplate>(`/task-templates/${id}`, input),
   deleteTaskTemplate: (id: number) => del<{ deleted: number }>(`/task-templates/${id}`),
-  // 【二开·P-TPL·U1】起 —— planner 模板库六封装（03 册 S11 五端点 + S11-v 试渲染干跑）
+  // [fork P-TPL U1] begin — six planner template library wrappers (vol 03 S11 five endpoints + S11-v test-render dry run)
   plannerTemplates: () => get<{ templates: PlannerTemplate[] }>("/planner-templates").then((r) => arr(r.templates)),
   createPlannerTemplate: (input: { name: string; body: string }) => post<PlannerTemplate>("/planner-templates", input),
   updatePlannerTemplate: (id: number, input: { name?: string; body?: string }) =>
@@ -228,7 +228,7 @@ export const tasksApi = {
   deleteWorkerTemplate: (id: number) => del<{ deleted: number }>(`/worker-templates/${id}`),
   setDefaultWorkerTemplate: (id: number) => post<WorkerTemplate>(`/worker-templates/${id}/default`, {}),
   validateWorkerTemplate: (body: string) => post<{ ok: boolean }>("/worker-templates/validate", { body }),
-  // 【二开·P-TPL·U1】止
+  // [fork P-TPL U1] end
   updateTaskLLMProfiles: (id: string, llmProfileIds: number[], activeLLMProfileId?: number) =>
     put<{
       id: string;
@@ -272,7 +272,7 @@ export const tasksApi = {
     intentId: string,
     action: "pause" | "resume" | "cancel",
     reason?: string,
-    // cancel 专用:soft(默认,假删除,意图置 deleted + 记删除原因)| hard(真删除,级联移除独占子孙)。
+    // cancel only: soft (default — soft delete, intent marked deleted with a reason) | hard (real delete, cascading removal of exclusively owned descendants).
     mode?: "soft" | "hard",
   ) =>
     post<{
@@ -288,28 +288,28 @@ export const tasksApi = {
       request_id: string;
     }>(`/tasks/${taskId}/intents/${intentId}/messages`, { message, request_id: requestId }),
   taskLLMResolution: (id: string) => get<TaskLLMResolutions>(`/tasks/${id}/llm/resolution`),
-  // 重跑一条没跑成功的意图(blocked/exhausted/stopped)：由服务端按执行器置回 open/proposed，等待重新认领。
+  // Rerun a failed intent (blocked/exhausted/stopped): the server resets it to open/proposed per executor for reclaiming.
   rerunIntent: (taskId: string, intentId: string) =>
     post<{ id: string; reopened: number }>(`/tasks/${taskId}/intents/${intentId}/rerun`),
-  // 批量重跑本任务全部可恢复意图(blocked/exhausted/stopped)。
+  // Batch-rerun all recoverable intents of this task (blocked/exhausted/stopped).
   rerunRecoverable: (taskId: string) => post<{ id: string; reopened: number }>(`/tasks/${taskId}/intents/rerun-recoverable`),
   setActive: (id: string) => post<{ active: string }>("/active", { id }),
   // ---- stats ----
   stats: (task?: string) => get<Stats>(`/stats${tq(task)}`),
-  // 资产测试覆盖度(粗估，供参考)：范围内资产被 fact 碰过的占比 + 按类型的 总数/已测。
+  // Asset test coverage (rough estimate, for reference): share of in-scope assets touched by facts + total/tested counts by type.
   taskCoverage: (id: string) =>
     get<{
-      enabled: boolean; // 资产覆盖度功能是否开启；false 时其余字段为零值
+      enabled: boolean; // whether asset coverage is enabled; other fields are zero when false
       scope_rows: number;
       denominator: number;
       tested: number;
       pct: number | null;
       by_type: { type: string; total: number; tested: number }[];
     }>(`/tasks/${id}/coverage`),
-  // 资产覆盖图：范围内全部资产 + 连接用的根域名/公司节点，含 tested/in_scope。
+  // Asset coverage graph: all in-scope assets + root-domain/company connector nodes, with tested/in_scope.
   taskCoverageGraph: (id: string) => get<CoverageGraphData>(`/tasks/${id}/coverage-graph`),
   taskTopology: (id: string) => get<TopologyGraph>(`/tasks/${id}/topology`),
-  // 新增节点：{node, first_edge}。first_edge 为 null/留空时后端自动连"发现方式待确认"虚线到入口。
+  // Add node: {node, first_edge}. When first_edge is null/omitted, the backend auto-links a dashed "discovery method unconfirmed" edge to the entry.
   addTopologyNode: (id: string, node: TopologyNodeInput, firstEdge: TopologyEdgeInput | null) =>
     post<TopologyGraph>(`/tasks/${id}/topology/nodes`, { node, first_edge: firstEdge }),
   patchTopologyNode: (id: string, ip: string, body: TopologyNodePatch) =>
@@ -327,40 +327,40 @@ export const tasksApi = {
   deleteTopologyGroup: (id: string, groupId: number) => del<TopologyGraph>(`/tasks/${id}/topology/groups/${groupId}`),
   addTopologyNote: (id: string, nodeIP: string, body: string) =>
     post<TopologyGraph>(`/tasks/${id}/topology/notes`, { node_ip: nodeIP, body }),
-  // 一次性种子：从任务资产（内网 IP）生成初始拓扑图，只补不覆盖。
+  // One-time seed: generate the initial topology from task assets (internal IPs); only adds, never overwrites.
   seedTopology: (id: string) => post<TopologyGraph>(`/tasks/${id}/topology/seed`),
-  // 全局 llm_usage 聚合（仪表盘新版 token 视图）：按 profile 总量 + 按天分桶。
+  // Global llm_usage aggregation (dashboard's new token view): totals by profile + daily buckets.
   usageStats: (days = 365) => get<UsageStats>(`/tokens/usage?days=${days}`),
-  // ---- 目标管理（总览）----
-  // 本任务全部目标（text/vulnclass/state）。
+  // ---- Goal management (overview) ----
+  // All goals of this task (text/vulnclass/state).
   taskGoals: (id: string) =>
     get<{ goals: TaskGoal[] | null }>(`/tasks/${id}/goals`).then((response) => ({ goals: arr(response.goals) })),
-  // 人工新增目标：写入图谱并通知 planner、复活任务。
+  // Manually add a goal: writes to the graph, notifies the planner, and revives the task.
   addGoal: (id: string, text: string, vulnclass?: string) =>
     post<TaskGoal>(`/tasks/${id}/goals`, { text, vulnclass: vulnclass ?? "" }),
-  // 人工修改目标文本（及 vulnclass）：通知 planner「由 old 变为 new」、复活任务。
+  // Manually edit goal text (and vulnclass): notifies the planner "old became new" and revives the task.
   updateGoal: (id: string, goalId: string, text: string, vulnclass?: string) =>
     patch<TaskGoal>(`/tasks/${id}/goals/${goalId}`, { text, vulnclass: vulnclass ?? "" }),
-  // 人工删除目标（硬删除）：通知 planner，删除不复活任务。
+  // Manually delete a goal (hard delete): notifies the planner; deletion does not revive the task.
   deleteGoal: (id: string, goalId: string) => del<{ ok: boolean }>(`/tasks/${id}/goals/${goalId}`),
 
-  // ---- 操作约束管理（总览）----
-  // 本任务全部操作约束（allow/deny）。
+  // ---- Operational constraint management (overview) ----
+  // All operational constraints of this task (allow/deny).
   taskConstraints: (id: string) =>
     get<{ constraints: TaskConstraint[] | null }>(`/tasks/${id}/constraints`).then((response) => ({
       constraints: arr(response.constraints),
     })),
-  // 新增约束（不通知 planner，下一轮规划自然读到）。
+  // Add a constraint (the planner is not notified; it simply reads it on the next planning round).
   addConstraint: (id: string, text: string, kind: TaskConstraint["kind"]) =>
     post<TaskConstraint>(`/tasks/${id}/constraints`, { text, kind }),
-  // 修改约束（文本 + allow/deny）。
+  // Edit a constraint (text + allow/deny).
   updateConstraint: (id: string, constraintId: string, text: string, kind: TaskConstraint["kind"]) =>
     patch<TaskConstraint>(`/tasks/${id}/constraints/${constraintId}`, { text, kind }),
-  // 删除约束。
+  // Delete a constraint.
   deleteConstraint: (id: string, constraintId: string) =>
     del<{ ok: boolean }>(`/tasks/${id}/constraints/${constraintId}`),
 
-  // ---- 任务级资产拦截/允许规则（总览）----
+  // ---- Task-level asset block/allow rules (overview) ----
   taskInterceptRules: (id: string) =>
     get<{ rules: AssetInterceptRule[] | null }>(`/tasks/${id}/intercept-rules`).then((r) => arr(r.rules)),
   createTaskInterceptRule: (id: string, rule: AssetInterceptRuleInput) =>
@@ -372,14 +372,14 @@ export const tasksApi = {
   toggleTaskInterceptRule: (id: string, ruleId: number, enabled: boolean) =>
     post<{ ok: boolean; enabled: boolean }>(`/tasks/${id}/intercept-rules/${ruleId}/toggle`, { enabled }),
 
-  // 本任务测试范围列表（含继承自来源任务的范围）。
+  // This task's test-scope list (including scopes inherited from source tasks).
   taskScope: (id: string) => get<{ scope: TaskScopeRow[] }>(`/tasks/${id}/scope`),
-  // 手动新增一条测试范围（kind=company/root_domain/subdomain/ip/cidr）。
+  // Manually add a test-scope entry (kind=company/root_domain/subdomain/ip/cidr).
   addTaskScope: (id: string, kind: string, value: string, reason?: string) =>
     post<TaskScopeRow>(`/tasks/${id}/scope`, { kind, value, reason }),
-  // 删除本任务的一条测试范围。
+  // Delete one of this task's test-scope entries.
   deleteTaskScope: (id: string, scopeId: number) => del<{ ok: boolean }>(`/tasks/${id}/scope/${scopeId}`),
-  // 某资产在本任务里关联的意图 / 事实 / 发现（覆盖图节点抽屉用）。
+  // Intents / facts / findings linked to an asset within this task (used by the coverage node drawer).
   taskAssetRefs: (id: string, assetId: number) => get<CoverageAssetRefs>(`/tasks/${id}/asset-refs?asset_id=${assetId}`),
 
   // ---- workspace file manager (workDir) ----
@@ -399,19 +399,19 @@ export const tasksApi = {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: fd,
     });
-    if (!r.ok) throw new Error(`上传失败: ${r.status}`);
+    if (!r.ok) throw new Error(`Upload failed: ${r.status}`);
     return r.json() as Promise<{ uploaded: number }>;
   },
   workspaceDownload: async (path: string) => {
     let blob: Blob;
     if (MOCK) {
-      blob = new Blob([`（demo）${path} 的下载内容示例。`], { type: "text/plain" });
+      blob = new Blob([`(demo) Example download content for ${path}.`], { type: "text/plain" });
     } else {
       const token = getToken();
       const r = await fetch(`/api/workspace/download?path=${encodeURIComponent(path)}`, {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
-      if (!r.ok) throw new Error(`下载失败: ${r.status}`);
+      if (!r.ok) throw new Error(`Download failed: ${r.status}`);
       blob = await r.blob();
     }
     const objUrl = URL.createObjectURL(blob);
@@ -464,7 +464,7 @@ export const tasksApi = {
   taskIntentAssets: (taskId: string) =>
     get<{ assets: IntentAsset[] }>(`/tasks/${taskId}/intent-assets`).then((r) => arr(r.assets)),
 
-  // ---- companies (企业 + 资产范围；归属唯一来源) ----
+  // ---- companies (companies + asset scope; single source of ownership) ----
   companies: () => get<Company[]>("/companies").then(arr),
   createCompany: (name: string, scope: CompanyScopeRule[]) =>
     post<{ id: number; created: boolean; scope_added?: number; scope_invalid?: number; scope_errors?: string[] }>(
@@ -506,13 +506,13 @@ export const tasksApi = {
     p.set("limit", String(q.pageSize));
     return get<FindingGroupsPage>(`/exploration/findings/groups?${p.toString()}`);
   },
-  // findingAssetTree 取「按资产」视图的左侧树:只含有发现的资产及其祖先,
-  // 节点带子树聚合计数。不分页——树是导航结构,一次取完。
+  // findingAssetTree returns the left-hand tree of the "by asset" view: only assets with findings and their ancestors,
+  // nodes carry subtree-aggregated counts. Not paged — the tree is a navigation structure fetched in full.
   findingAssetTree: (q: Omit<FindingQuery, "page" | "pageSize">) =>
     get<FindingAssetTree>(`/exploration/findings/asset-tree?${findingFilterParams(q).toString()}`),
   findingStats: () => get<FindingStats>("/exploration/findings/stats"),
-  // exportFindings 触发发现页导出并下载文件。scope=selected 时传 ids(finding_id 列表);
-  // scope=filtered 时传当前筛选(沿用 FindingQuery 的筛选字段);scope=all 忽略筛选。
+  // exportFindings triggers a findings-page export and downloads the file. scope=selected passes ids (finding_id list);
+  // scope=filtered passes the current filters (FindingQuery fields); scope=all ignores filters.
   exportFindings: async (opts: {
     format: "md-single" | "md-zip" | "csv" | "json";
     scope: "filtered" | "all" | "selected";
@@ -531,7 +531,7 @@ export const tasksApi = {
     });
     if (!r.ok) throw new Error(`export: ${r.status}`);
     const blob = await r.blob();
-    // 文件名优先取后端 Content-Disposition,取不到则用默认名。
+    // The filename prefers the backend Content-Disposition, falling back to the default name.
     const disp = r.headers.get("Content-Disposition") ?? "";
     const m = disp.match(/filename="?([^"]+)"?/);
     const filename = m?.[1] ?? `findings-export`;
@@ -604,8 +604,8 @@ export const tasksApi = {
       { headers: token ? { Authorization: `Bearer ${token}` } : {} },
     );
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "下载失败" }));
-      throw new Error(error.error ?? "下载失败");
+      const error = await response.json().catch(() => ({ error: "Download failed" }));
+      throw new Error(error.error ?? "Download failed");
     }
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -615,16 +615,16 @@ export const tasksApi = {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   },
-  // 漏洞链路:该漏洞节点回溯到任务初始节点的子图(节点 + 关系)。
+  // Finding lineage: the subgraph from this finding's node back to the task's initial node (nodes + relations).
   findingLineage: (id: string) => get<{ nodes: TaskNode[]; edges: Edge[] }>(`/exploration/findings/${id}/lineage`),
   setFindingStatus: (id: string, status: FindingStatus) => patch<Finding>(`/exploration/findings/${id}`, { status }),
   setFindingSeverity: (id: string, severity: Severity) => patch<Finding>(`/exploration/findings/${id}`, { severity }),
-  // 一次保存漏洞的名称/类别/严重等级(发现列表行内编辑用),只传出现的字段。
+  // Save a finding's name/class/severity in one call (for inline editing in the findings list); only present fields are sent.
   updateFinding: (
     id: string,
     fields: { name?: string; vulnclass?: string; severity?: Severity; status?: FindingStatus },
   ) => patch<Finding>(`/exploration/findings/${id}`, fields),
-  // 删除漏洞:移除 findings 记录 + 来源探索节点(从发现列表/任务发现 Tab/探索图一并消失)。
+  // Delete a finding: removes the findings record + its origin exploration node (disappears from the findings list, task findings tab, and exploration graph).
   deleteFinding: (id: string) => del<{ deleted: boolean; id: number }>(`/exploration/findings/${id}`),
   findingRetests: (id: string) =>
     get<{ retests: FindingRetest[] }>(`/exploration/findings/${encodeURIComponent(id)}/retests`).then((r) =>
@@ -652,7 +652,7 @@ export const tasksApi = {
       .then(arr)
       .catch(() => [] as ConvTokenSummary[]),
   explorationGraph: (task?: string) => get<{ nodes: TaskNode[]; edges: Edge[] }>(`/exploration/graph${tq(task)}`),
-  // 播报板:服务端按创建顺序分页的探索节点(默认最新在前)。
+  // Broadcast board: exploration nodes paged by creation order on the server (newest first by default).
   explorationNodes: (task: string, query: ExplorationNodeQuery = {}) => {
     const q = new URLSearchParams();
     if (task) q.set("task", task);

@@ -1,8 +1,8 @@
 /**
- * theme-switcher.tsx：顶栏主题切换按钮，点击在 light/dark/system 之间循环。
- * 主要函数/类型：
- *   - ThemeSwitcher：循环切换主题模式并持久化的图标按钮。
- *   - THEME_CYCLE：主题模式循环顺序。
+ * theme-switcher.tsx: top-bar theme toggle button; cycles through light/dark/system on click.
+ * Main functions/types:
+ *   - ThemeSwitcher: icon button that cycles and persists the theme mode.
+ *   - THEME_CYCLE: theme-mode cycle order.
  */
 "use client";
 

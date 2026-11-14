@@ -1,6 +1,6 @@
 /**
- * card.tsx：shadcn/ui 的 Card 卡片布局组件封装。
- * 主要组件：Card、CardHeader、CardFooter、CardTitle、CardAction、
+ * card.tsx: shadcn/ui Card layout component wrapper.
+ * Main components: Card, CardHeader, CardFooter, CardTitle, CardAction,
  *   CardDescription、CardContent。
  */
 import * as React from "react"

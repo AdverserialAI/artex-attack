@@ -1,7 +1,7 @@
 /**
- * host-assets.tsx：宿主标签页的资产表格，按企业分组展示主域名/子域名/IP/服务，选中行联动其发现列表。
- * 主要函数/类型：
- *   - HostAssets：表格主体，选中行后经 api.findingsPage 拉取该宿主资产下的发现
+ * host-assets.tsx: asset table for the Hosts tab; groups root domains/subdomains/IPs/services by company, with row selection driving the findings list.
+ * Main functions/types:
+ *   - HostAssets: table body; selecting a row fetches that host's findings via api.findingsPage
  */
 "use client";
 
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { AssetHostRow, Finding, Severity } from "@/lib/types";
 
-const severityText: Record<Severity, string> = { critical: "严重", high: "高危", medium: "中危", low: "低危" };
+const severityText: Record<Severity, string> = { critical: "Critical", high: "High", medium: "Medium", low: "Low" };
 const severityClass: Record<Severity, string> = {
   critical: "bg-red-600 text-white",
   high: "bg-orange-500 text-white",
@@ -67,17 +67,17 @@ export function HostAssets({
         <table className="w-full min-w-[1120px] text-sm">
           <thead className="bg-muted/40">
             <tr className="border-b text-left">
-              <th className="px-4 py-3 font-medium">企业</th>
-              <th className="px-4 py-3 font-medium">主域名</th>
-              <th className="px-4 py-3 font-medium">子域名</th>
+              <th className="px-4 py-3 font-medium">Company</th>
+              <th className="px-4 py-3 font-medium">Root domain</th>
+              <th className="px-4 py-3 font-medium">Subdomains</th>
               <th className="px-4 py-3 font-medium">IP</th>
-              <th className="px-4 py-3 font-medium">应用 / 服务 / 接口</th>
-              <th className="px-4 py-3 text-right font-medium">发现数</th>
+              <th className="px-4 py-3 font-medium">Apps / Services / Endpoints</th>
+              <th className="px-4 py-3 text-right font-medium">Findings</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const company = row.company_name || "未归属";
+              const company = row.company_name || "Unassigned";
               const showCompany = company !== previousCompany;
               previousCompany = company;
               const primarySubdomain = row.subdomains[0] ?? "";
@@ -101,7 +101,7 @@ export function HostAssets({
                     {primarySubdomain || "—"}
                     {row.subdomains.length > 1 && (
                       <span className="ml-2 text-xs text-muted-foreground" title={row.subdomains.slice(1).join("\n")}>
-                        +{row.subdomains.length - 1} 其他
+                        +{row.subdomains.length - 1} more
                       </span>
                     )}
                   </td>
@@ -116,10 +116,10 @@ export function HostAssets({
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {row.critical > 0 && <Badge className="bg-red-600 text-white">严 {row.critical}</Badge>}
-                      {row.high > 0 && <Badge className="bg-orange-500 text-white">高 {row.high}</Badge>}
-                      {row.medium > 0 && <Badge className="bg-yellow-500 text-black">中 {row.medium}</Badge>}
-                      {row.low > 0 && <Badge className="bg-slate-500 text-white">低 {row.low}</Badge>}
+                      {row.critical > 0 && <Badge className="bg-red-600 text-white">C {row.critical}</Badge>}
+                      {row.high > 0 && <Badge className="bg-orange-500 text-white">H {row.high}</Badge>}
+                      {row.medium > 0 && <Badge className="bg-yellow-500 text-black">M {row.medium}</Badge>}
+                      {row.low > 0 && <Badge className="bg-slate-500 text-white">L {row.low}</Badge>}
                       <span className="ml-1 font-medium">{row.finding_count}</span>
                     </div>
                   </td>
@@ -136,26 +136,26 @@ export function HostAssets({
             <div>
               <h2 className="flex items-center gap-2 text-sm font-medium">
                 <Globe className="size-4" />
-                {selected.ip} 的发现
+                Findings for {selected.ip}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {selected.root_domain || "裸 IP"} · {findingTotal} 条
+                {selected.root_domain || "Bare IP"} · {findingTotal}
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => onSelect(null)}>
               <RotateCcw className="size-4" />
-              取消筛选
+              Clear filter
             </Button>
           </div>
           {loadingFindings ? (
             <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              加载发现…
+              Loading findings…
             </div>
           ) : error ? (
             <div className="p-4 text-sm text-destructive">{error}</div>
           ) : findings.length === 0 ? (
-            <div className="p-6 text-sm text-muted-foreground">该宿主暂无发现。</div>
+            <div className="p-6 text-sm text-muted-foreground">No findings for this host.</div>
           ) : (
             <div className="divide-y">
               {findings.map((finding) => (
@@ -164,11 +164,11 @@ export function HostAssets({
                   <div className="min-w-0">
                     <div className="font-medium">{finding.name || finding.vulnclass}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {finding.vulnclass} · {finding.summary || "暂无摘要"}
+                      {finding.vulnclass} · {finding.summary || "No summary"}
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {finding.task_description || `任务 #${finding.task_id || "—"}`}
+                    {finding.task_description || `Task #${finding.task_id || "—"}`}
                   </span>
                 </article>
               ))}

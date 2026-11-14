@@ -1,6 +1,6 @@
 /**
- * item.tsx：shadcn/ui 的 Item 列表项组件封装（含 cva 变体样式）。
- * 主要组件：Item、ItemHeader、ItemTitle、ItemDescription、ItemContent、ItemMedia、
+ * item.tsx: shadcn/ui Item list-item component wrapper (with cva variant styles).
+ * Main components: Item, ItemHeader, ItemTitle, ItemDescription, ItemContent, ItemMedia,
  *   ItemFooter、ItemActions、ItemGroup、ItemSeparator。
  */
 import * as React from "react"

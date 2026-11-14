@@ -1,7 +1,7 @@
 /**
- * status-badge.tsx：跨状态域的通用状态徽章，依据 lib/status 元数据渲染色调与文案。
- * 主要函数/类型：
- *   - StatusBadge：状态徽章组件（domain + value，可选圆点）
+ * status-badge.tsx: generic status badge across status domains; renders tone and label from lib/status metadata.
+ * Main functions/types:
+ *   - StatusBadge: status badge component (domain + value, optional dot)
  */
 import { cn } from "@/lib/utils";
 import {

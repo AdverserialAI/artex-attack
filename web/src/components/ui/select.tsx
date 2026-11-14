@@ -1,6 +1,6 @@
 /**
- * select.tsx：shadcn/ui 的 Select 下拉选择组件封装。
- * 主要组件：Select、SelectTrigger、SelectValue、SelectContent、SelectGroup、
+ * select.tsx: shadcn/ui Select dropdown component wrapper.
+ * Main components: Select, SelectTrigger, SelectValue, SelectContent, SelectGroup,
  *   SelectLabel、SelectItem、SelectSeparator、SelectScrollUpButton、SelectScrollDownButton。
  */
 "use client"

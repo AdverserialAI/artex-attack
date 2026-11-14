@@ -1,7 +1,7 @@
 /**
- * nav-user.tsx：侧栏底部用户菜单，展示用户头像信息并提供修改密码与退出登录。
- * 主要函数/类型：
- *   - NavUser：侧栏底部的用户下拉菜单组件。
+ * nav-user.tsx: sidebar footer user menu; shows user avatar info with change-password and sign-out entries.
+ * Main functions/types:
+ *   - NavUser: user dropdown menu component at the sidebar footer.
  */
 "use client";
 
@@ -38,8 +38,8 @@ export function NavUser({
 
   function handleLogout() {
     auth.clearToken();
-    // 硬跳转：让浏览器用已清除的 cookie 发起全新请求，
-    // middleware 才能正确读到空 token 并放行 /login
+    // Hard navigation: lets the browser issue a fresh request with the cleared cookie,
+    // so middleware correctly sees the empty token and allows /login
     window.location.href = "/login";
   }
 
@@ -84,12 +84,12 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setPwOpen(true)}>
               <KeyRound />
-              修改密码
+              Change password
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
               <LogOut />
-              退出登录
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

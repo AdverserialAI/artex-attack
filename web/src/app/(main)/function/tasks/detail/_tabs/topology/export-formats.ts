@@ -1,10 +1,10 @@
 /**
- * export-formats.ts：拓扑图导出为 GraphML 1.0（yEd/Gephi 可读）与 draw.io mxGraph XML。
- * 职责：把拓扑图序列化为 GraphML / draw.io XML 文本。
- * 主要函数/类型：
- *   - exportGraphML：导出 GraphML 1.0 文本（分组以 group_ref 关联的扁平结构）
- *   - exportDrawIO：导出 draw.io mxGraph XML 文本（未压缩明文，一图一页）
- * 纯函数、确定性输出（固定头注释、无时间戳）、无浏览器 API，可在 node 中单测。
+ * export-formats.ts: export the topology graph as GraphML 1.0 (readable by yEd/Gephi) and draw.io mxGraph XML.
+ * Purpose: serialize the topology graph into GraphML / draw.io XML text.
+ * Main functions/types:
+ *   - exportGraphML: exports GraphML 1.0 text (flat structure with groups linked via group_ref)
+ *   - exportDrawIO: exports draw.io mxGraph XML text (uncompressed plain text, one graph per page)
+ * Pure functions with deterministic output (fixed header comment, no timestamps) and no browser APIs; unit-testable in node.
  */
 
 import type { TopologyGraph, TopologyGraphGroup, TopologyGraphNode } from "@/lib/types";
@@ -21,11 +21,11 @@ const DRAWIO_NODE_STYLE_BASE =
   "rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;fontSize=12;align=center;verticalAlign=middle;";
 const DRAWIO_EDGE_STYLE_BASE = "rounded=0;html=1;jettySize=auto;strokeWidth=1.5;";
 
-/** 节点/分组 id 前缀（mxGraph 把 id 当普通字符串，冒号合法）。 */
+/** Node/group id prefixes (mxGraph treats ids as plain strings; colons are legal). */
 const groupCellId = (group: TopologyGraphGroup): string => `g:${group.name}`;
 const nodeCellId = (ip: string): string => `n:${ip}`;
 
-/** XML 转义五个特殊字符：& < > " '。 */
+/** XML-escape the five special characters: & < > " '. */
 function xmlEscape(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -35,18 +35,18 @@ function xmlEscape(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** 画布置色在并行迭代中以可选字段挂在节点/边上；老数据可能没有。 */
+/** Canvas colors are attached to nodes/edges as optional fields in later iterations; older data may not have them. */
 function ownColor(item: unknown): string {
   const color = (item as { color?: unknown } | null | undefined)?.color;
   return typeof color === "string" ? color.trim() : "";
 }
 
-/** 坐标输出统一保留两位小数，避免 1e-7 之类浮点噪声。 */
+/** Coordinates are emitted with two decimal places to avoid floating-point noise like 1e-7. */
 function fmtNum(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
 
-/** 节点的画布绝对坐标：分组内相对分组框左上角，框外即绝对坐标。 */
+/** Absolute canvas coordinates of a node: relative to the group frame's top-left inside a group, absolute outside. */
 function absolutePosition(node: TopologyGraphNode, groups: TopologyGraphGroup[]): { x: number; y: number } {
   if (node.group_id == null) return { x: node.x, y: node.y };
   const group = groups.find((g) => g.id === node.group_id);
@@ -54,7 +54,7 @@ function absolutePosition(node: TopologyGraphNode, groups: TopologyGraphGroup[])
   return { x: group.x + node.x, y: group.y + node.y };
 }
 
-// GraphML 1.0（扁平结构：分组也是普通节点，成员节点用 group_ref 关联）
+// GraphML 1.0 (flat structure: groups are ordinary nodes too; members link via group_ref)
 
 const GRAPHML_NODE_KEYS: Array<{ id: string; name: string }> = [
   { id: "d_label", name: "label" },
@@ -98,7 +98,7 @@ export function exportGraphML(graph: TopologyGraph): string {
   }
   lines.push('  <graph edgedefault="directed">');
 
-  // 分组先输出：本身是 is_group=true 的节点，携带几何信息。
+  // Groups are emitted first: they are is_group=true nodes carrying geometry.
   for (const group of graph.groups) {
     const size = groupSize(group);
     const color = ownColor(group);
@@ -149,13 +149,13 @@ export function exportGraphML(graph: TopologyGraph): string {
   return lines.join("\n");
 }
 
-// draw.io mxGraph XML（未压缩明文，一图一页）
+// draw.io mxGraph XML (uncompressed plain text, one graph per page)
 
 function mxGeometry(x: number, y: number, width: number, height: number): string {
   return `<mxGeometry x="${fmtNum(x)}" y="${fmtNum(y)}" width="${fmtNum(width)}" height="${fmtNum(height)}" as="geometry"/>`;
 }
 
-/** html=1 标签：换行先转成 <br> 再整体转义，draw.io 会解码回 <br> 渲染换行。 */
+/** html=1 labels: newlines are converted to <br> first, then the whole label is escaped; draw.io decodes it back to <br> for line breaks. */
 function drawioValue(text: string): string {
   return xmlEscape(text.replace(/\r?\n/g, "<br>"));
 }
@@ -207,7 +207,7 @@ export function exportDrawIO(graph: TopologyGraph): string {
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push(`<!-- ${DRAWIO_COMMENT} -->`);
   lines.push('<mxfile host="artex" type="device">');
-  lines.push('  <diagram name="内网拓扑" id="artex-topology">');
+  lines.push('  <diagram name="Internal topology" id="artex-topology">');
   lines.push(
     '    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" ' +
       'arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">',

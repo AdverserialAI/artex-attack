@@ -1,6 +1,6 @@
 /**
- * sonner.tsx：基于 sonner 的 Toaster 全局通知组件封装（跟随站点主题、自定义 lucide 图标）。
- * 主要组件：Toaster。
+ * sonner.tsx: Toaster global notification wrapper built on sonner (follows site theme, custom lucide icons).
+ * Main components: Toaster.
  */
 "use client"
 

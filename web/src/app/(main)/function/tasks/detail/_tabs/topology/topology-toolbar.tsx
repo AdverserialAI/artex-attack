@@ -1,9 +1,9 @@
 /**
- * topology-toolbar.tsx：拓扑工具栏（自动布局、建组、导入导出、连线/框选开关）与分组弹窗。
- * 主要函数/类型：
- *   - TopologyToolbar：工具栏主组件；TopologyRun：写操作统一执行器（跑请求+toast+刷新整图）
- *   - AddGroupDialog / RenameGroupDialog：新建（支持框选预填）与重命名分组弹窗
- *   - BoxGroupPrefill：框选建组的预填几何与成员
+ * topology-toolbar.tsx: topology toolbar (auto layout, grouping, import/export, connect/box-select toggles) and group dialogs.
+ * Main functions/types:
+ *   - TopologyToolbar: main toolbar component; TopologyRun: unified write executor (request + toast + graph refresh)
+ *   - AddGroupDialog / RenameGroupDialog: create (with box-select prefill) and rename group dialogs
+ *   - BoxGroupPrefill: prefill geometry and members for box-select grouping
  */
 "use client";
 
@@ -56,7 +56,7 @@ export type TopologyRun = (
   options?: { rethrowOnError?: boolean },
 ) => Promise<TopologyGraph | null>;
 
-/** 框选建组的预填几何与成员（来自画布的 onBoxSelect）。 */
+/** Prefill geometry and members for box-select grouping (from the canvas's onBoxSelect). */
 export type BoxGroupPrefill = {
   rect: { x: number; y: number; width: number; height: number };
   members: TopologyGraphNode[];
@@ -79,7 +79,7 @@ export function AddGroupDialog({
 }) {
   const [name, setName] = React.useState("");
 
-  // 打开时清空名称草稿（框选预填时名称为空，由用户命名）。
+  // Clear the name draft on open (box-select prefill leaves the name empty for the user to fill).
   React.useEffect(() => {
     if (open) setName("");
   }, [open]);
@@ -87,10 +87,10 @@ export function AddGroupDialog({
   async function handleSubmit() {
     const groupName = name.trim();
     if (!groupName) {
-      toast.error("请填写分组名称");
+      toast.error("Please enter a group name");
       return;
     }
-    // 框选预填：分组几何取框选矩形（做最小尺寸兜底）；否则沿用右侧自动摆放。
+    // Box-select prefill: group geometry comes from the selection rect (with a minimum-size fallback); otherwise auto-place to the right.
     const geometry = prefill
       ? {
           x: Math.round(prefill.rect.x),
@@ -102,7 +102,7 @@ export function AddGroupDialog({
     const next = await run(async () => {
       let current = await api.addTopologyGroup(taskId, { name: groupName, ...geometry });
       if (prefill && prefill.members.length > 0) {
-        // 后端只回整图：用名称 + 几何定位刚创建的分组，再逐个把成员挪进去。
+        // The backend only returns the full graph: locate the new group by name + geometry, then move members in one by one.
         const created = current.groups.find(
           (group) =>
             group.name === groupName &&
@@ -118,7 +118,7 @@ export function AddGroupDialog({
         }
       }
       return current;
-    }, "分组已添加");
+    }, "Group added");
     if (next) onOpenChange(false);
   }
 
@@ -126,20 +126,20 @@ export function AddGroupDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>添加分组</DialogTitle>
+          <DialogTitle>Add group</DialogTitle>
           <DialogDescription>
             {prefill
-              ? `将把框选到的 ${prefill.members.length} 个节点归入该分组。`
-              : "拖动节点入框即可归组，框本身也可整体拖动。"}
+              ? `The ${prefill.members.length} nodes in the selection will be added to this group.`
+              : "Drag nodes into the frame to group them; the frame itself can be dragged as a whole."}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="topology-group-name">分组名称</Label>
+          <Label htmlFor="topology-group-name">Group name</Label>
           <Input
             id="topology-group-name"
             value={name}
             maxLength={120}
-            placeholder="例如：运维网段"
+            placeholder="e.g. Ops subnet"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void handleSubmit();
@@ -148,9 +148,9 @@ export function AddGroupDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            Cancel
           </Button>
-          <Button onClick={() => void handleSubmit()}>创建</Button>
+          <Button onClick={() => void handleSubmit()}>Create</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -186,13 +186,13 @@ function RenameGroupDialog({
           height: group.height,
           color: group.color,
         }),
-      "分组已更新",
+      "Group updated",
     );
     if (next) onClose();
   }
 
   const [confirmingDelete, setConfirmingDelete] = React.useState(false);
-  // 分组切换时在渲染期重置确认态（React 推荐的 derive-state 模式，避免 effect 依赖告警）。
+  // Reset confirmation state during render on group switch (React's recommended derive-state pattern, avoids effect-dependency warnings).
   const [confirmingFor, setConfirmingFor] = React.useState<number | null>(null);
   if ((group?.id ?? null) !== confirmingFor) {
     setConfirmingFor(group?.id ?? null);
@@ -201,7 +201,7 @@ function RenameGroupDialog({
 
   async function handleDelete() {
     if (!group) return;
-    const next = await run(() => api.deleteTopologyGroup(taskId, group.id), "分组已删除，成员保留在画布上");
+    const next = await run(() => api.deleteTopologyGroup(taskId, group.id), "Group deleted; members kept on the canvas");
     if (next) onClose();
   }
 
@@ -214,10 +214,10 @@ function RenameGroupDialog({
     >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>重命名分组</DialogTitle>
+          <DialogTitle>Rename group</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="topology-group-rename">分组名称</Label>
+          <Label htmlFor="topology-group-rename">Group name</Label>
           <Input
             id="topology-group-rename"
             value={name}
@@ -234,20 +234,20 @@ function RenameGroupDialog({
               variant="destructive"
               size="sm"
               onClick={() => void handleDelete()}
-              title="成员节点会保留在画布上（退出分组）"
+              title="Member nodes stay on the canvas (leaving the group)"
             >
-              确认删除？成员保留
+              Confirm delete? Members kept
             </Button>
           ) : (
             <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setConfirmingDelete(true)}>
-              删除分组
+              Delete group
             </Button>
           )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
-              取消
+              Cancel
             </Button>
-            <Button onClick={() => void handleSubmit()}>保存</Button>
+            <Button onClick={() => void handleSubmit()}>Save</Button>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -285,18 +285,18 @@ export function TopologyToolbar({
   const [exporting, setExporting] = React.useState(false);
 
   async function runWithBusy(operation: () => Promise<TopologyGraph>, action: string) {
-    // React 状态异步提交；同步锁确保快速双击不会发起第二轮写操作。
+    // React state commits asynchronously; the synchronous lock prevents rapid double-clicks from starting a second write.
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     try {
       await run(operation, undefined, { rethrowOnError: true });
     } catch (reason) {
-      toast.error(`${action}失败：${errorText(reason)}；部分修改可能已生效，正在重新加载拓扑`);
+      toast.error(`${action} failed: ${errorText(reason)}; some changes may have taken effect — reloading topology`);
       try {
         onGraph(await api.taskTopology(taskId));
       } catch (reloadReason) {
-        toast.error(`重新加载拓扑失败：${errorText(reloadReason)}`);
+        toast.error(`Failed to reload topology: ${errorText(reloadReason)}`);
       }
     } finally {
       busyRef.current = false;
@@ -304,12 +304,12 @@ export function TopologyToolbar({
     }
   }
 
-  // 布局与归组解耦：自动整理只重排坐标，不强制把节点放进外框；
-  // 需要按 /24 归组时点「按 C 段归组」。busy 由外层统一覆盖完整写流程。
+  // Layout and grouping are decoupled: auto arrange only repositions coordinates and never forces nodes into frames;
+  // use "Group by /24" when subnet grouping is wanted. busy is covered by the outer layer for the whole write flow.
   async function layoutGraph(working: TopologyGraph) {
     const plan = autoLayout(working);
     if (plan.positions.size === 0 && plan.groupBoxes.size === 0) {
-      toast.info("没有可自动整理的节点");
+      toast.info("No nodes to auto arrange");
       return working;
     }
     let current = working;
@@ -328,12 +328,12 @@ export function TopologyToolbar({
     for (const [ip, pos] of plan.positions) {
       current = await api.patchTopologyNode(taskId, ip, { x: pos.x, y: pos.y });
     }
-    toast.success(`已重排 ${plan.positions.size} 个节点、${plan.groupBoxes.size} 个分组框`);
+    toast.success(`Rearranged ${plan.positions.size} nodes and ${plan.groupBoxes.size} group frames`);
     return current;
   }
 
   async function handleAutoLayout() {
-    await runWithBusy(() => layoutGraph(graph), "自动整理");
+    await runWithBusy(() => layoutGraph(graph), "Auto arrange");
   }
 
   async function handleC24Group() {
@@ -342,7 +342,7 @@ export function TopologyToolbar({
       const current = await layoutGraph(working);
       markC24Grouped(taskId);
       return current;
-    }, "按 C 段归组");
+    }, "Group by /24");
   }
 
   async function handleExportJSON() {
@@ -351,7 +351,7 @@ export function TopologyToolbar({
       const coverage = await api.taskCoverageGraph(taskId).catch(() => null);
       const payload = buildExportPayload(taskId, graph, coverage);
       downloadJSON(`artex-asset-graph-${taskId}.json`, payload);
-      toast.success("已导出 JSON");
+      toast.success("JSON exported");
     } finally {
       setExporting(false);
     }
@@ -369,18 +369,18 @@ export function TopologyToolbar({
 
   function handleExportGraphML() {
     downloadText(`artex-topology-${taskId}.graphml`, exportGraphML(graph), "application/graphml+xml");
-    toast.success("已导出 GraphML（可用 yEd/Gephi/draw.io 打开编辑）");
+    toast.success("GraphML exported (open and edit with yEd/Gephi/draw.io)");
   }
 
   function handleExportDrawIO() {
     downloadText(`artex-topology-${taskId}.drawio`, exportDrawIO(graph), "application/xml");
-    toast.success("已导出 draw.io 文件（可在 diagrams.net 打开编辑）");
+    toast.success("draw.io file exported (open and edit with diagrams.net)");
   }
 
   const emptyGraph = graph.nodes.length === 0;
 
   async function handleSeed() {
-    const next = await run(() => api.seedTopology(taskId), "已从任务资产生成初始拓扑");
+    const next = await run(() => api.seedTopology(taskId), "Initial topology generated from task assets");
     if (next) onGraph(next);
   }
 
@@ -393,54 +393,54 @@ export function TopologyToolbar({
         aria-pressed={connectMode}
       >
         <Link2 className="size-3.5" />
-        添加联系
+        Add connection
       </Button>
       <Button size="sm" variant="outline" onClick={() => setAddGroupOpen(true)}>
         <Group className="size-3.5" />
-        添加分组
+        Add group
       </Button>
       <Button
         size="sm"
         variant={boxSelectMode ? "default" : "outline"}
         onClick={onToggleBoxSelect}
         aria-pressed={boxSelectMode}
-        title="在画布空白处拖出框选区域，把区域内节点建成分组"
+        title="Drag a selection rectangle on empty canvas to group the nodes inside it"
       >
         <BoxSelect className="size-3.5" />
-        框选建组
+        Box-select & group
       </Button>
       <Separator orientation="vertical" className="mx-1 h-6" />
       <Button size="sm" variant="outline" onClick={() => void handleAutoLayout()} disabled={busy}>
         {busy ? <Loader2 className="size-3.5 animate-spin" /> : <LayoutGrid className="size-3.5" />}
-        自动整理
+        Auto arrange
       </Button>
       <Button size="sm" variant="outline" onClick={() => void handleC24Group()} disabled={busy}>
-        <Group className="size-3.5" />按 C 段归组
+        <Group className="size-3.5" />Group by /24
       </Button>
       <Separator orientation="vertical" className="mx-1 h-6" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button size="sm" variant="outline" disabled={exporting}>
             <Download className="size-3.5" />
-            导出
+            Export
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuItem onSelect={() => void handleExportJSON()}>JSON（artex 格式，可再导入）</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void handleExportJSON()}>JSON (artex format, re-importable)</DropdownMenuItem>
           <DropdownMenuItem onSelect={handleExportGraphML}>GraphML（yEd / Gephi / draw.io）</DropdownMenuItem>
           <DropdownMenuItem onSelect={handleExportDrawIO}>draw.io（diagrams.net）</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
         <Upload className="size-3.5" />
-        导入 JSON
+        Import JSON
       </Button>
       {emptyGraph && (
         <>
           <Separator orientation="vertical" className="mx-1 h-6" />
           <Button size="sm" onClick={() => void handleSeed()} disabled={busy}>
             <Sparkles className="size-3.5" />
-            从资产生成初始拓扑
+            Generate initial topology from assets
           </Button>
         </>
       )}

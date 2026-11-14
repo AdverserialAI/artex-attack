@@ -1,8 +1,8 @@
 /**
- * layout.tsx：(main) 路由组布局，客户端鉴权守卫（未登录跳 /login）并渲染侧边栏与主内容区。
- * 主要函数/类型：
- *   - readPref：从 cookie 读取布局偏好（静态导出回退默认值）
- *   - Layout：鉴权后渲染 SidebarProvider、AppSidebar 与 MainContent
+ * layout.tsx: (main) route-group layout; client-side auth guard (redirects to /login when logged out) rendering the sidebar and main content area.
+ * Main functions/types:
+ *   - readPref: reads layout preferences from cookies (static export falls back to defaults)
+ *   - Layout: after auth, renders SidebarProvider, AppSidebar, and MainContent
  */
 "use client";
 
@@ -43,9 +43,9 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
     if (auth.getToken()) {
       setAuthed(true);
     } else {
-      // 客户端守卫认为未登录时，必须同时清掉 cookie：否则 proxy.ts 仅凭
-      // “cookie 存在”就把我们从 /login 又重定向回主界面，与本守卫来回弹跳
-      // 形成无限重定向 → 白屏（cookie 与 localStorage 不一致时触发）。
+      // When the client guard considers us logged out, it must also clear the cookie: otherwise proxy.ts, seeing only
+      // "cookie exists", redirects us from /login back to the main UI, bouncing back and forth with this guard
+      // causing an infinite redirect → blank page (triggered when cookie and localStorage disagree).
       auth.clearToken();
       window.location.href = "/login";
     }

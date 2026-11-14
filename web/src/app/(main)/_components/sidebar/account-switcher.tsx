@@ -1,8 +1,8 @@
 /**
- * account-switcher.tsx：顶栏头像账号菜单，展示当前用户并提供修改密码与退出登录入口。
- * 主要函数/类型：
- *   - AccountSwitcher：头像触发的下拉菜单组件。
- *   - AccountUser：传入用户的 id/name/email/avatar/role 结构。
+ * account-switcher.tsx: top-bar avatar account menu; shows the current user with change-password and sign-out entries.
+ * Main functions/types:
+ *   - AccountSwitcher: avatar-triggered dropdown menu component.
+ *   - AccountUser: shape of the passed-in user (id/name/email/avatar/role).
  */
 "use client";
 
@@ -31,8 +31,8 @@ interface AccountUser {
   readonly role: string;
 }
 
-// AccountSwitcher 是顶栏的单账号菜单：头像触发，展开显示当前用户、修改密码与退出登录。
-// （原设计支持多账号切换，但唯一调用方固定传单用户；若恢复多账号，再把列表与选中态加回来。）
+// AccountSwitcher is the top-bar single-account menu: avatar trigger; expands to show the current user, change password, and sign out.
+// (The original design supported multi-account switching, but the only caller always passes a single user; if multi-account returns, restore the list and selection state.)
 export function AccountSwitcher({ user }: { readonly user: AccountUser }) {
   const [pwOpen, setPwOpen] = useState(false);
 
@@ -73,11 +73,11 @@ export function AccountSwitcher({ user }: { readonly user: AccountUser }) {
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setPwOpen(true)}>
             <KeyRound />
-            修改密码
+            Change password
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
             <LogOut />
-            退出登录
+            Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

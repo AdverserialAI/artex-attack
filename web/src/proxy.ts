@@ -1,8 +1,8 @@
 /**
- * proxy.ts：Next.js 请求代理，基于登录 token 做路由守卫。
- * 主要函数/类型：
- *   - proxy：未登录访问受保护页面时重定向到 /login，mock 模式直接放行
- *   - config：matcher，排除内部路由、API 与静态资源
+ * proxy.ts: Next.js request proxy; route guard based on the login token.
+ * Main functions/types:
+ *   - proxy: redirects to /login when accessing protected pages logged out; allows everything in mock mode
+ *   - config: matcher excluding internal routes, API, and static assets
  */
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -10,19 +10,19 @@ import type { NextRequest } from "next/server";
 const AUTH_PAGES = ["/login", "/setup"];
 
 export function proxy(request: NextRequest) {
-  // Mock demo：无真实登录，放行所有页面（客户端 auth 守卫也会放行）。
+  // Mock demo: no real login; allow all pages (the client auth guard also allows them).
   if (process.env.NEXT_PUBLIC_MOCK === "1") return NextResponse.next();
 
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("artex_token")?.value;
   const isAuthPage = AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-  // 未登录 → 跳转登录页
+  // Logged out → redirect to the login page
   if (!token && !isAuthPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 已登录时访问登录/初始化页 → 跳转主界面
+  // Logged in and visiting login/setup pages → redirect to the main UI
   if (token && isAuthPage) {
     return NextResponse.redirect(new URL("/function/tasks", request.url));
   }
@@ -31,6 +31,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 跳过 Next.js 内部路由、API 路由、favicon 及 public/ 下的静态文件（含图片、字体等）
+  // Skip Next.js internal routes, API routes, favicon, and static files under public/ (images, fonts, etc.)
   matcher: ["/((?!_next/static|_next/image|favicon\\.ico|api/|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|otf)$).*)"],
 };

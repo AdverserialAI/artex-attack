@@ -1,9 +1,9 @@
 /**
- * topology-node-drawer.tsx：拓扑节点详情抽屉（属性编辑、入边管理、备注、资产关联）。
- * 主要函数/类型：
- *   - TopologyNodeDrawer：节点详情抽屉主组件
- *   - ColorPicker / COLOR_PRESETS：节点/连线共用的颜色选择器与 8 个预设色
- *   - DetailRow：标签-内容展示行（供其他面板复用）
+ * topology-node-drawer.tsx: topology node detail drawer (property editing, incoming-edge management, notes, asset links).
+ * Main functions/types:
+ *   - TopologyNodeDrawer: main node detail drawer component
+ *   - ColorPicker / COLOR_PRESETS: color picker shared by nodes/edges and its 8 presets
+ *   - DetailRow: label-value display row (reused by other panels)
  */
 "use client";
 
@@ -48,18 +48,18 @@ function formatTime(value: string): string {
   return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
 }
 
-/** 入口状态文字颜色；未登记状态回退到中性色。 */
+/** Text color for entry status; unregistered statuses fall back to neutral. */
 const ENTRY_TEXT_TONE: Record<string, string> = {
   confirmed: "text-emerald-600 dark:text-emerald-400",
   suspected: "text-amber-600 dark:text-amber-400",
 };
 
-/** 颜色预设：覆盖常见标注需求，配合原生取色器与「默认」清除。 */
+/** Color presets covering common annotation needs, alongside the native color picker and a "Default" reset. */
 export const COLOR_PRESETS = ["#1d4ed8", "#0e7490", "#047857", "#65a30d", "#b45309", "#dc2626", "#7c3aed", "#be185d"];
 
 /**
- * 节点/联系共用的颜色选择器：8 个预设色块 + 原生取色器 + 「默认」清除（""）。
- * 导出给 topology-edge-dialog 复用，避免新增文件。
+ * Color picker shared by nodes/connections: 8 preset swatches + native picker + "Default" reset ("").
+ * Exported for reuse by topology-edge-dialog to avoid another file.
  */
 export function ColorPicker({
   value,
@@ -76,7 +76,7 @@ export function ColorPicker({
         <button
           key={preset}
           type="button"
-          aria-label={`颜色 ${preset}`}
+          aria-label={`Color ${preset}`}
           disabled={disabled}
           onClick={() => onChange(preset)}
           className={cn(
@@ -88,7 +88,7 @@ export function ColorPicker({
       ))}
       <label
         className="relative flex h-5 cursor-pointer items-center overflow-hidden rounded border border-black/10 disabled:cursor-not-allowed"
-        title="自定义颜色"
+        title="Custom color"
       >
         <input
           type="color"
@@ -106,7 +106,7 @@ export function ColorPicker({
         onClick={() => onChange("")}
         className="h-6 px-2 text-xs"
       >
-        默认
+        Default
       </Button>
     </div>
   );
@@ -141,7 +141,7 @@ function EditableTextRow({
         <Input value={draft} maxLength={255} onChange={(e) => setDraft(e.target.value)} disabled={pending} />
         <Button variant="outline" size="sm" disabled={pending || !dirty} onClick={() => void onSave(draft.trim())}>
           <Save className="size-3.5" />
-          保存
+          Save
         </Button>
       </div>
     </DetailRow>
@@ -161,13 +161,13 @@ function EditableDescriptionRow({
   const dirty = draft !== value;
   React.useEffect(() => setDraft(value), [value]);
   return (
-    <DetailRow label="节点描述">
+    <DetailRow label="Node description">
       <div className="flex flex-col gap-1.5">
         <textarea
           className="min-h-16 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
           value={draft}
           maxLength={500}
-          placeholder="这个资产是什么（服务/端口/系统/容器…），留空不显示"
+          placeholder="What this asset is (service/port/OS/container…); leave empty to hide"
           onChange={(e) => setDraft(e.target.value)}
           disabled={pending}
         />
@@ -179,7 +179,7 @@ function EditableDescriptionRow({
           onClick={() => void onSave(draft.trim())}
         >
           <Save className="size-3.5" />
-          保存
+          Save
         </Button>
       </div>
     </DetailRow>
@@ -235,7 +235,7 @@ function IncomingEdgeRow({
   return (
     <div className="flex flex-col gap-2 rounded-md border p-2.5">
       <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-[11px]">来源</span>
+        <span className="text-muted-foreground text-[11px]">Source</span>
         <span className="truncate font-mono text-xs">{edge.src_ip}</span>
         <span className={cn("ml-auto rounded border px-1.5 py-0.5 text-[10px]", EDGE_KIND_META[kind].chip)}>
           {EDGE_KIND_META[kind].label}
@@ -246,13 +246,13 @@ function IncomingEdgeRow({
         <input
           value={label}
           maxLength={200}
-          placeholder="联系说明，例如：通过共享运维终端访问"
+          placeholder="Connection label, e.g. accessed via a shared ops terminal"
           onChange={(e) => setLabel(e.target.value)}
           className="border-input h-8 min-w-0 flex-1 rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:border-blue-400"
         />
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground">颜色</span>
+        <span className="text-[11px] text-muted-foreground">Color</span>
         <ColorPicker value={color} onChange={setColor} disabled={disabled} />
       </div>
       <div className="flex items-center gap-2">
@@ -261,7 +261,7 @@ function IncomingEdgeRow({
             {edge.evidence_ref}
           </Badge>
         ) : (
-          <span className="text-muted-foreground text-[10px]">无证据引用</span>
+          <span className="text-muted-foreground text-[10px]">No evidence reference</span>
         )}
         <div className="ml-auto flex items-center gap-1.5">
           <Button
@@ -271,11 +271,11 @@ function IncomingEdgeRow({
             onClick={() => onSave(edge, { label, kind, color })}
           >
             <Save className="size-3.5" />
-            保存
+            Save
           </Button>
           <Button size="sm" variant="ghost" disabled={disabled} onClick={() => onDelete(edge)}>
             <Trash2 className="size-3.5" />
-            删除
+            Delete
           </Button>
         </div>
       </div>
@@ -300,7 +300,7 @@ function AddEdgeForm({
   const [label, setLabel] = React.useState("");
 
   if (others.length === 0) {
-    return <p className="text-muted-foreground text-xs">图中只有这一个节点，先添加更多节点再建立联系。</p>;
+    return <p className="text-muted-foreground text-xs">This is the only node in the graph — add more nodes before creating connections.</p>;
   }
 
   return (
@@ -308,7 +308,7 @@ function AddEdgeForm({
       <div className="flex items-center gap-2">
         <Select value={src} onValueChange={setSrc}>
           <SelectTrigger size="sm" className="min-w-0 flex-1">
-            <SelectValue placeholder="来源节点" />
+            <SelectValue placeholder="Source node" />
           </SelectTrigger>
           <SelectContent>
             {others.map((n) => (
@@ -324,13 +324,13 @@ function AddEdgeForm({
         <input
           value={label}
           maxLength={200}
-          placeholder="联系说明（可选）"
+          placeholder="Connection label (optional)"
           onChange={(e) => setLabel(e.target.value)}
           className="border-input h-8 min-w-0 flex-1 rounded-md border bg-transparent px-2 text-xs outline-none focus-visible:border-blue-400"
         />
         <Button size="sm" disabled={disabled || !src} onClick={() => onSubmit({ src_ip: src, kind, label })}>
           <Plus className="size-3.5" />
-          添加
+          Add
         </Button>
       </div>
     </div>
@@ -377,7 +377,7 @@ export function TopologyNodeDrawer({
       if (success) toast.success(success);
       return next;
     } catch (reason) {
-      toast.error(`操作失败：${errorText(reason)}`);
+      toast.error(`Operation failed: ${errorText(reason)}`);
       return null;
     } finally {
       setPending(false);
@@ -406,10 +406,10 @@ export function TopologyNodeDrawer({
                 <section>
                   <Collapsible open={rawOpen} onOpenChange={setRawOpen}>
                     <div className="mb-1 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">原始数据</h3>
+                      <h3 className="text-sm font-semibold">Raw data</h3>
                       <CollapsibleTrigger asChild>
                         <Button size="sm" variant="ghost">
-                          {rawOpen ? "收起" : "展开"}
+                          {rawOpen ? "Collapse" : "Expand"}
                           <ChevronDown className={cn("size-3.5 transition-transform", rawOpen && "rotate-180")} />
                         </Button>
                       </CollapsibleTrigger>
@@ -418,31 +418,31 @@ export function TopologyNodeDrawer({
                       <RawJSON value={node} />
                       <AssetRefsSection refs={refs} />
                       {!refs && (
-                        <p className="text-muted-foreground text-xs">该 IP 未在当前任务资产中登记，无关联意图/发现。</p>
+                        <p className="text-muted-foreground text-xs">This IP is not registered in the current task's assets — no linked intents/findings.</p>
                       )}
                     </CollapsibleContent>
                   </Collapsible>
                 </section>
 
                 <section>
-                  <h3 className="mb-1 text-sm font-semibold">机器信息</h3>
+                  <h3 className="mb-1 text-sm font-semibold">Host information</h3>
                   <DetailRow label="IP">{node.ip}</DetailRow>
                   <EditableTextRow
-                    label="主机名"
+                    label="Hostname"
                     value={node.hostname}
                     pending={pending}
                     onSave={async (next) => {
-                      await run(async () => api.patchTopologyNode(taskId, node.ip, { hostname: next }), "主机名已保存");
+                      await run(async () => api.patchTopologyNode(taskId, node.ip, { hostname: next }), "Hostname saved");
                     }}
                   />
                   <EditableTextRow
-                    label="显示名"
+                    label="Display name"
                     value={node.display_label}
                     pending={pending}
                     onSave={async (next) => {
                       await run(
                         async () => api.patchTopologyNode(taskId, node.ip, { display_label: next }),
-                        "显示名已保存",
+                        "Display name saved",
                       );
                     }}
                   />
@@ -452,17 +452,17 @@ export function TopologyNodeDrawer({
                     onSave={async (next) => {
                       await run(
                         async () => api.patchTopologyNode(taskId, node.ip, { description: next }),
-                        "节点描述已保存",
+                        "Node description saved",
                       );
                     }}
                   />
-                  <DetailRow label="入口状态">
+                  <DetailRow label="Entry status">
                     <span className={cn(ENTRY_TEXT_TONE[node.entry_status] ?? "text-muted-foreground")}>
-                      {ENTRY_STATUS_LABEL[node.entry_status] ?? "非入口"}
+                      {ENTRY_STATUS_LABEL[node.entry_status] ?? "Not an entry"}
                     </span>
                   </DetailRow>
-                  <DetailRow label="分组">{group?.name ?? "未分组"}</DetailRow>
-                  <DetailRow label="颜色">
+                  <DetailRow label="Group">{group?.name ?? "Ungrouped"}</DetailRow>
+                  <DetailRow label="Color">
                     <div className="flex items-center gap-2">
                       {node.color ? (
                         <span
@@ -470,7 +470,7 @@ export function TopologyNodeDrawer({
                           style={{ backgroundColor: node.color }}
                         />
                       ) : (
-                        <span className="text-muted-foreground">默认</span>
+                        <span className="text-muted-foreground">Default</span>
                       )}
                       <ColorPicker
                         value={node.color}
@@ -478,7 +478,7 @@ export function TopologyNodeDrawer({
                         onChange={(color) =>
                           void run(
                             () => api.patchTopologyNode(taskId, node.ip, { color }),
-                            color ? "颜色已更新" : "已恢复默认颜色",
+                            color ? "Color updated" : "Default color restored",
                           )
                         }
                       />
@@ -487,7 +487,7 @@ export function TopologyNodeDrawer({
                   {node.entry_status === "suspected" && (
                     <div className="mt-2 flex items-center gap-2 rounded-md border border-amber-400/50 bg-amber-50/60 p-2 dark:bg-amber-950/40">
                       <p className="text-muted-foreground flex-1 text-xs">
-                        该节点疑似入口。确认后后端会把其它节点降级为普通主机。
+                        This node is a suspected entry. Confirming it demotes all other nodes to regular hosts on the backend.
                       </p>
                       <Button
                         size="sm"
@@ -495,11 +495,11 @@ export function TopologyNodeDrawer({
                         onClick={() =>
                           void run(
                             () => api.patchTopologyNode(taskId, node.ip, { entry_status: "confirmed" }),
-                            "已标记为入口",
+                            "Marked as entry",
                           )
                         }
                       >
-                        确认入口
+                        Confirm entry
                       </Button>
                     </div>
                   )}
@@ -507,21 +507,21 @@ export function TopologyNodeDrawer({
 
                 <section className="flex flex-col gap-2">
                   <h3 className="text-sm font-semibold">
-                    发现关系
+                    Connections
                     <span className="text-muted-foreground ml-1.5 text-xs font-normal">
-                      指向该节点的 {incoming.length} 条
+                      {incoming.length} pointing at this node
                     </span>
                   </h3>
-                  {incoming.length === 0 && <p className="text-muted-foreground text-xs">还没有其他节点指向它。</p>}
+                  {incoming.length === 0 && <p className="text-muted-foreground text-xs">No other nodes point at it yet.</p>}
                   {incoming.map((edge) => (
                     <IncomingEdgeRow
                       key={edge.id}
                       edge={edge}
                       disabled={pending}
                       onSave={(target, patch) =>
-                        void run(() => api.patchTopologyEdge(taskId, target.id, patch), "联系已更新")
+                        void run(() => api.patchTopologyEdge(taskId, target.id, patch), "Connection updated")
                       }
-                      onDelete={(target) => void run(() => api.deleteTopologyEdge(taskId, target.id), "联系已删除")}
+                      onDelete={(target) => void run(() => api.deleteTopologyEdge(taskId, target.id), "Connection deleted")}
                     />
                   ))}
                   <AddEdgeForm
@@ -537,19 +537,19 @@ export function TopologyNodeDrawer({
                             kind: edge.kind,
                             label: edge.label,
                           }),
-                        "联系已添加",
+                        "Connection added",
                       )
                     }
                   />
                 </section>
 
                 <section>
-                  <h3 className="mb-1.5 text-sm font-semibold">人工备注</h3>
+                  <h3 className="mb-1.5 text-sm font-semibold">Manual notes</h3>
                   <Textarea
                     value={note}
                     maxLength={4000}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="记录人工判断，不改变原始证据。"
+                    placeholder="Record manual judgments without altering the original evidence."
                     className="min-h-20"
                   />
                   <Button
@@ -562,19 +562,19 @@ export function TopologyNodeDrawer({
                         const next = await api.addTopologyNote(taskId, node.ip, note.trim());
                         setNote("");
                         return next;
-                      }, "备注已保存")
+                      }, "Note saved")
                     }
                   >
                     <Save className="size-3.5" />
-                    保存备注
+                    Save note
                   </Button>
                   <div className="mt-3 flex flex-col gap-2">
-                    {notes.length === 0 && <p className="text-muted-foreground text-xs">暂无人工备注。</p>}
+                    {notes.length === 0 && <p className="text-muted-foreground text-xs">No manual notes yet.</p>}
                     {notes.map((item) => (
                       <div key={item.id} className="rounded-md border p-2.5 text-xs">
                         <p className="whitespace-pre-wrap">{item.body}</p>
                         <p className="text-muted-foreground mt-1.5">
-                          {item.created_by || "未知来源"} · {formatTime(item.created_at)}
+                          {item.created_by || "Unknown source"} · {formatTime(item.created_at)}
                         </p>
                       </div>
                     ))}
@@ -586,28 +586,28 @@ export function TopologyNodeDrawer({
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" disabled={pending}>
                         <Trash2 className="size-3.5" />
-                        删除节点
+                        Delete node
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>删除节点 {node.ip}？</AlertDialogTitle>
+                        <AlertDialogTitle>Delete node {node.ip}?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          与之相连的联系会一并删除，变成孤儿的节点会由后端降级为待确认入口。
+                          Its connections are deleted too; orphaned nodes are demoted to suspected entries by the backend.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() =>
                             void run(async () => {
                               const next = await api.deleteTopologyNode(taskId, node.ip);
                               onDeleted();
                               return next;
-                            }, "节点已删除")
+                            }, "Node deleted")
                           }
                         >
-                          删除
+                          Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

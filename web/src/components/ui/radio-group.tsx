@@ -1,6 +1,6 @@
 /**
- * radio-group.tsx：shadcn/ui 的 RadioGroup 单选组组件封装。
- * 主要组件：RadioGroup、RadioGroupItem。
+ * radio-group.tsx: shadcn/ui RadioGroup component wrapper.
+ * Main components: RadioGroup, RadioGroupItem.
  */
 "use client"
 

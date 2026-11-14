@@ -1,5 +1,5 @@
 /**
- * 职责：hydration 前读取主题/布局偏好并写入 data 属性，避免闪烁。
+ * Purpose: read theme/layout preferences before hydration and write them to data attributes to avoid flicker.
  * Boot script that reads user preference values (theme mode, theme preset,
  * content layout, navbar style) from cookies or localStorage based on the
  * configured persistence mode.

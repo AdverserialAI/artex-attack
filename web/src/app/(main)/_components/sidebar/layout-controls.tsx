@@ -1,7 +1,7 @@
 /**
- * layout-controls.tsx：顶栏设置按钮弹出的偏好控制面板，涵盖主题、字体、页面布局、侧栏样式等。
- * 主要函数/类型：
- *   - LayoutControls：Popover 偏好面板，变更即写偏好存储并持久化，支持一键恢复默认。
+ * layout-controls.tsx: preferences panel opened from the top-bar settings button; covers theme, fonts, page layout, sidebar styles, etc.
+ * Main functions/types:
+ *   - LayoutControls: popover preferences panel; changes are written to the preferences store and persisted, with one-click reset to defaults.
  */
 "use client";
 

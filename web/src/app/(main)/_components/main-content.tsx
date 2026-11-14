@@ -1,8 +1,11 @@
 /**
- * main-content.tsx：主内容区外壳，渲染全局顶栏并在非任务详情页包裹 children。
- * 主要函数/类型：
- *   - MainContent：渲染顶栏（侧栏开关、账号菜单、搜索、主题/布局控制、版本徽标）与页面内容。
- *   - isFullBleed：判断是否为任务详情页，详情页跳过全局头部直接渲染 children。
+ * main-content.tsx: Main content shell. Renders the global top bar and wraps
+ * children on all pages except task detail pages.
+ * Main functions/types:
+ *   - MainContent: renders the top bar (sidebar toggle, account menu, search,
+ *     theme/layout controls, version badge) and the page content.
+ *   - isFullBleed: detects task detail pages, which skip the global header and
+ *     render children directly.
  */
 "use client";
 
@@ -20,9 +23,9 @@ import { AccountSwitcher } from "./sidebar/account-switcher";
 import { LayoutControls } from "./sidebar/layout-controls";
 import { SearchDialog } from "./sidebar/search-dialog";
 import { ThemeSwitcher } from "./sidebar/theme-switcher";
-import { UpdateBadge } from "./update-badge";
 
-// 任务详情页保持原样：它自带头部/Tabs 与内边距，这里不再叠加全局头部和 padding。
+// Task detail pages stay as-is: they bring their own header/tabs and padding,
+// so the global header and padding are not stacked on top.
 function isFullBleed(pathname: string) {
   const p = (() => {
     try {
@@ -31,8 +34,10 @@ function isFullBleed(pathname: string) {
       return pathname;
     }
   })();
-  // 静态导出开了 trailingSlash，列表页自身的 pathname 是 "/function/tasks/"，
-  // 先去掉尾斜杠再判前缀，否则列表页会被误判成详情页而丢掉全局头部。
+  // The static export enables trailingSlash, so a list page's own pathname is
+  // "/function/tasks/". Strip trailing slashes before checking the prefix,
+  // otherwise the list page would be mistaken for a detail page and lose the
+  // global header.
   const normalized = p.replace(/\/+$/, "");
   return normalized.startsWith("/function/tasks/");
 }
@@ -72,9 +77,8 @@ export function MainContent({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-2">
             {version && (
-              <span className="font-medium text-muted-foreground text-xs tabular-nums">版本 · {version}</span>
+              <span className="font-medium text-muted-foreground text-xs tabular-nums">Version · {version}</span>
             )}
-            <UpdateBadge />
             <LayoutControls />
             <ThemeSwitcher />
             <AccountSwitcher user={currentUser} />

@@ -1,6 +1,6 @@
 /**
- * label.tsx：shadcn/ui 的 Label 表单标签组件封装。
- * 主要组件：Label。
+ * label.tsx: shadcn/ui Label form-label component wrapper.
+ * Main components: Label.
  */
 "use client"
 

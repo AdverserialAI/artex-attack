@@ -1,9 +1,9 @@
 /**
- * side-questions.ts：侧问（/btw 旁路提问）数据模型与 API 封装。
- * 主要函数/类型：
- *   - SideModel / SideExchange / SideHistory：侧问消息与历史分页结构
- *   - sideAPI：history/ask/clear/cancel 接口封装（history 会做数据归一化）
- *   - isBtwCommand：识别 /btw 命令前缀
+ * side-questions.ts: side-question (/btw) data model and API wrapper.
+ * Main functions/types:
+ *   - SideModel / SideExchange / SideHistory: side-question message and history paging shapes
+ *   - sideAPI: history/ask/clear/cancel API wrappers (history normalizes data)
+ *   - isBtwCommand: recognizes the /btw command prefix
  */
 import { http } from "@/lib/api";
 
@@ -48,9 +48,9 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
 }
 
 export const sideAPI = {
-  // 历史必须归一化后再交给调用方:items 一旦不是数组,消费端的 setState updater 会抛,
-  // 而 React 会把 updater 的异常推迟到 render 阶段重抛 —— 那时调用方的 catch 已经够不着,
-  // 整页直接被错误边界接管。
+  // History must be normalized before reaching callers: if items is ever not an array, the consumer's setState updater throws,
+  // and React defers updater exceptions to the render phase — by then the caller's catch can no longer reach it,
+  // and the whole page is taken over by the error boundary.
   history: async (parent: string, before = 0) => {
     const data = await request<Partial<SideHistory>>(`${parent}/side-questions?before=${before}`);
     return {

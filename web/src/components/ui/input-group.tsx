@@ -1,6 +1,6 @@
 /**
- * input-group.tsx：shadcn/ui 的 InputGroup 输入框组合组件封装（addon/按钮/文本组合）。
- * 主要组件：InputGroup、InputGroupAddon、InputGroupButton、InputGroupText、
+ * input-group.tsx: shadcn/ui InputGroup component wrapper (addon/button/text combinations).
+ * Main components: InputGroup, InputGroupAddon, InputGroupButton, InputGroupText,
  *   InputGroupInput、InputGroupTextarea。
  */
 "use client"

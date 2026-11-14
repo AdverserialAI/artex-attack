@@ -1,6 +1,6 @@
 /**
- * tooltip.tsx：shadcn/ui 的 Tooltip 文字提示组件封装。
- * 主要组件：Tooltip、TooltipProvider、TooltipTrigger、TooltipContent。
+ * tooltip.tsx: shadcn/ui Tooltip component wrapper.
+ * Main components: Tooltip, TooltipProvider, TooltipTrigger, TooltipContent.
  */
 "use client"
 

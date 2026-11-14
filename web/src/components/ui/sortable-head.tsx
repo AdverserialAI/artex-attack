@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * sortable-head.tsx：可排序表格表头单元格组件，职责为点击切换列排序方向并显示排序图标。
- * 主要函数/类型：
- *   - SortableHead：渲染可点击的表头单元格（泛型 Field），处理 aria-sort 与排序图标。
+ * sortable-head.tsx: sortable table header cell component; toggles column sort direction on click and shows the sort icon.
+ * Main functions/types:
+ *   - SortableHead: renders the clickable header cell (generic Field); handles aria-sort and sort icons.
  */
 
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
@@ -38,8 +38,8 @@ export function SortableHead<Field extends string>({
   let ariaSort: React.AriaAttributes["aria-sort"] = "none";
   if (active) ariaSort = direction === "asc" ? "ascending" : "descending";
 
-  let actionLabel = `按${label}倒序排序`;
-  if (active) actionLabel = `${label}当前${direction === "asc" ? "正序" : "倒序"}，点击切换排序方向`;
+  let actionLabel = `Sort by ${label} descending`;
+  if (active) actionLabel = `${label} currently ${direction === "asc" ? "ascending" : "descending"} — click to toggle sort direction`;
 
   let icon = <ArrowUpDownIcon className="size-3.5 opacity-40 transition-opacity group-hover/sort:opacity-100" />;
   if (active) icon = direction === "asc" ? <ArrowUpIcon className="size-3.5" /> : <ArrowDownIcon className="size-3.5" />;

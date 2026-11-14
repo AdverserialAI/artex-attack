@@ -1042,6 +1042,8 @@ func (s *Server) Handler() http.Handler {
 	api := accessLog(cors(s.requireAuth(mux)))
 	root := http.NewServeMux()
 	root.Handle("/api/", api)
+	root.HandleFunc("GET /attestation", s.attestationQuote)
+	root.HandleFunc("GET /info", s.attestationInfo)
 	root.Handle("/", s.webuiHandler())
 	return root
 }

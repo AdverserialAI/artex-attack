@@ -1,6 +1,6 @@
 /**
- * spinner.tsx：Spinner 加载中指示器组件封装（基于 lucide Loader2 图标）。
- * 主要组件：Spinner。
+ * spinner.tsx: Spinner loading-indicator component wrapper (based on the lucide Loader2 icon).
+ * Main components: Spinner.
  */
 import { cn } from "@/lib/utils"
 import { Loader2Icon } from "lucide-react"

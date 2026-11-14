@@ -1,6 +1,6 @@
 /**
- * alert-dialog.tsx：shadcn/ui 的 AlertDialog 确认对话框组件封装。
- * 主要组件：AlertDialog、AlertDialogTrigger、AlertDialogContent、AlertDialogHeader、
+ * alert-dialog.tsx: shadcn/ui AlertDialog confirmation dialog component wrapper.
+ * Main components: AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
  *   AlertDialogFooter、AlertDialogTitle、AlertDialogDescription、AlertDialogAction、
  *   AlertDialogCancel、AlertDialogOverlay、AlertDialogPortal、AlertDialogMedia。
  */

@@ -1,6 +1,6 @@
 /**
- * collapsible.tsx：shadcn/ui 的 Collapsible 可折叠面板组件封装。
- * 主要组件：Collapsible、CollapsibleTrigger、CollapsibleContent。
+ * collapsible.tsx: shadcn/ui Collapsible panel component wrapper.
+ * Main components: Collapsible, CollapsibleTrigger, CollapsibleContent.
  */
 "use client"
 

@@ -1,6 +1,6 @@
 /**
- * progress.tsx：shadcn/ui 的 Progress 进度条组件封装。
- * 主要组件：Progress。
+ * progress.tsx: shadcn/ui Progress bar component wrapper.
+ * Main components: Progress.
  */
 "use client"
 

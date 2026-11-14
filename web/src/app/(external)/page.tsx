@@ -1,7 +1,7 @@
 /**
- * page.tsx：站点落地页，直接重定向到任务页 /function/tasks。
- * 主要函数/类型：
- *   - Home：执行 redirect 的重定向入口
+ * page.tsx: site landing page; redirects straight to the tasks page /function/tasks.
+ * Main functions/types:
+ *   - Home: redirect entry that performs the redirect
  */
 import { redirect } from "next/navigation";
 

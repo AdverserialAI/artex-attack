@@ -1,6 +1,6 @@
 /**
- * command.tsx：shadcn/ui 的 Command 命令面板组件封装（基于 cmdk）。
- * 主要组件：Command、CommandDialog、CommandInput、CommandList、CommandEmpty、
+ * command.tsx: shadcn/ui Command palette component wrapper (built on cmdk).
+ * Main components: Command, CommandDialog, CommandInput, CommandList, CommandEmpty,
  *   CommandGroup、CommandItem、CommandShortcut、CommandSeparator。
  */
 "use client"

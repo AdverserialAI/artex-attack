@@ -1,7 +1,7 @@
 /**
- * app-sidebar.tsx：应用侧栏根组件，组装侧栏头部 Logo、主导航与底部用户菜单。
- * 主要函数/类型：
- *   - AppSidebar：根据偏好存储同步侧栏 variant/collapsible 并渲染整体结构。
+ * app-sidebar.tsx: application sidebar root component; assembles the header logo, main navigation, and footer user menu.
+ * Main functions/types:
+ *   - AppSidebar: syncs sidebar variant/collapsible from the preferences store and renders the overall structure.
  */
 "use client";
 

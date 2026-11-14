@@ -1,6 +1,6 @@
 /**
- * resizable.tsx：shadcn/ui 的 Resizable 可调整尺寸面板组件封装（基于 react-resizable-panels）。
- * 主要组件：ResizablePanelGroup、ResizablePanel、ResizableHandle。
+ * resizable.tsx: shadcn/ui Resizable panel component wrapper (built on react-resizable-panels).
+ * Main components: ResizablePanelGroup, ResizablePanel, ResizableHandle.
  */
 "use client"
 

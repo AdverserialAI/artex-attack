@@ -1,6 +1,6 @@
 /**
- * field.tsx：shadcn/ui 的 Field 表单字段组件封装。
- * 主要组件：Field、FieldLabel、FieldDescription、FieldError、FieldGroup、FieldLegend、
+ * field.tsx: shadcn/ui Field form-field component wrapper.
+ * Main components: Field, FieldLabel, FieldDescription, FieldError, FieldGroup, FieldLegend,
  *   FieldSeparator、FieldSet、FieldContent、FieldTitle。
  */
 "use client"

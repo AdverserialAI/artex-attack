@@ -1,13 +1,13 @@
 /**
- * intercept.ts：拦截域——全局拦截规则、资产拦截黑名单、人工/模型审批（pending/history/
- * task 维度）、全局工具拦截范围与 LLM 兜底审批配置。
- * 主要函数/类型：
- *   - interceptApi / InterceptApi：拦截域 API 聚合对象及其类型
- *   - interceptRules 系列：全局拦截规则 CRUD 与开关
- *   - assetInterceptRules 系列：资产拦截黑名单 CRUD 与开关
- *   - interceptPending/interceptDecide/interceptHistory/interceptTask 系列：人工/模型审批查询与决定
- *   - interceptGetToolConfig/interceptSetToolConfig：全局工具拦截范围
- *   - interceptGetJudgeConfig/interceptSetJudgeConfig/interceptJudgeUsage：LLM 兜底审批配置与用量
+ * intercept.ts: intercept domain — global intercept rules, asset intercept blacklist, manual/model approvals (pending/history/
+ * task-scoped), global tool intercept scope, and LLM fallback-approval configuration.
+ * Main functions/types:
+ *   - interceptApi / InterceptApi: intercept-domain API aggregate object and its type
+ *   - interceptRules family: global intercept rule CRUD and toggles
+ *   - assetInterceptRules family: asset intercept blacklist CRUD and toggles
+ *   - interceptPending/interceptDecide/interceptHistory/interceptTask family: manual/model approval queries and decisions
+ *   - interceptGetToolConfig/interceptSetToolConfig: global tool intercept scope
+ *   - interceptGetJudgeConfig/interceptSetJudgeConfig/interceptJudgeUsage: LLM fallback-approval config and usage
  */
 
 import { arr, del, get, getToken, interceptPageQuery, post, put } from "@/lib/api/http";
@@ -34,7 +34,7 @@ export const interceptApi = {
   toggleInterceptRule: (id: number, enabled: boolean) =>
     post<{ ok: boolean; enabled: boolean }>(`/intercept/rules/${id}/toggle`, { enabled }),
 
-  // ---- asset intercept rules（资产拦截：全局黑名单） ----
+  // ---- asset intercept rules (asset interception: global blacklist) ----
   assetInterceptRules: () => get<{ rules: AssetInterceptRule[] }>("/asset-intercept/rules").then((r) => arr(r.rules)),
   createAssetInterceptRule: (rule: Pick<AssetInterceptRule, "enabled" | "kind" | "pattern" | "note">) =>
     post<AssetInterceptRule>("/asset-intercept/rules", rule),
@@ -72,7 +72,7 @@ export const interceptApi = {
       total: r.total ?? r.items?.length ?? 0,
     })),
 
-  // ---- intercept tool-config (全局工具拦截范围) ----
+  // ---- intercept tool-config (global tool intercept scope) ----
   interceptGetToolConfig: async (): Promise<{ enabled_tools: string[] }> => {
     if (MOCK) return { enabled_tools: ["bash"] };
     const token = getToken();
@@ -96,7 +96,7 @@ export const interceptApi = {
     if (!r.ok) throw new Error(await r.text());
   },
 
-  // ---- intercept LLM judge (模型兜底审批,全局配置) ----
+  // ---- intercept LLM judge (model fallback approval, global config) ----
   interceptGetJudgeConfig: () => get<JudgeConfig>("/intercept/judge"),
   interceptSetJudgeConfig: (cfg: JudgeConfig) => put<{ ok: boolean }>("/intercept/judge", cfg),
   interceptJudgeUsage: (days = 30) => get<JudgeUsage>(`/intercept/judge/usage?days=${days}`),

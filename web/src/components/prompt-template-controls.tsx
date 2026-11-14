@@ -1,9 +1,9 @@
 /**
- * prompt-template-controls.tsx：提示词模板选择 + 就地覆盖控件，dedup 合并后通过 adapter 同时服务 planner 与 worker 两域。
- * 主要函数/类型：
- *   - PromptTemplateControls：通用模板选择控件（adapter 注入列表端点与文案）
- *   - PlannerTemplateControls / WorkerTemplateControls：planner / worker 域入口，绑定各自 adapter
- *   - PromptTemplateControlsAdapter：域差异注入接口
+ * prompt-template-controls.tsx: prompt template picker + inline override controls; deduplicated via an adapter serving both planner and worker domains.
+ * Main functions/types:
+ *   - PromptTemplateControls: generic template picker (adapter injects list endpoint and copy)
+ *   - PlannerTemplateControls / WorkerTemplateControls: planner / worker domain entries, each bound to its adapter
+ *   - PromptTemplateControlsAdapter: domain-difference injection interface
  */
 "use client";
 
@@ -28,35 +28,35 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { PlannerTemplate } from "@/lib/types";
 
-// PromptTemplateControlsAdapter 注入 planner/worker 模板控件的域差异：模板列表端点、
-// 就地管理面板组件与全部文案。两域控件逻辑此前逐行相同。
+// PromptTemplateControlsAdapter injects the domain differences of the planner/worker template controls: list endpoint,
+// inline management panel component, and all copy. The two domains' control logic was previously identical line for line.
 interface PromptTemplateControlsAdapter {
-  // 模板列表加载端点。
+  // Template list loading endpoint.
   list: () => Promise<PlannerTemplate[]>;
-  // 加载失败 toast 前缀（如「加载规划模板失败」）。
+  // Toast prefix for load failures (e.g. "Failed to load planner templates").
   loadErrorPrefix: string;
-  // 模板选择控件的 label / id / 空态 / 说明。
+  // Template picker label / id / empty state / description.
   pickerLabel: string;
   pickerId: string;
   emptyText: string;
   pickerDescription: string;
-  // 提示词覆盖输入框的 label / id / 占位 / 说明。
+  // Prompt-override input label / id / placeholder / description.
   overrideLabel: string;
   overrideId: string;
   overridePlaceholder: string;
   overrideDescription: string;
-  // 就地打开的模板管理面板组件。
+  // Template management panel component opened inline.
   Manager: React.ComponentType<{ open: boolean; onOpenChange: (open: boolean) => void }>;
 }
 
 interface PromptTemplateControlsProps {
-  templateID: number | null; // 选中的模板；null=跟随模板库默认
+  templateID: number | null; // selected template; null = follow the library default
   onTemplateIDChange: (id: number | null) => void;
-  prompt: string; // 提示词覆盖；''=不覆盖（选模板后自动灌入正文，可再手改）
+  prompt: string; // prompt override; '' = no override (template body is auto-filled on selection and can be edited)
   onPromptChange: (v: string) => void;
   adapter: PromptTemplateControlsAdapter;
-  portalContainer?: React.RefObject<HTMLDivElement | null>; // Combobox 弹层挂点（Sheet 内滚动容器）
-  // 扩展区：宿主注入的额外控件（如 planner 的 Worker 数量输入），渲染在覆盖框之后、管理面板之前。
+  portalContainer?: React.RefObject<HTMLDivElement | null>; // Combobox popover mount point (scroll container inside a Sheet)
+  // Extension area: extra controls injected by the host (e.g. planner's Worker count input), rendered after the override box and before the management panel.
   children?: React.ReactNode;
 }
 
@@ -72,9 +72,9 @@ export function PromptTemplateControls({
   const [templates, setTemplates] = React.useState<PlannerTemplate[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [inputValue, setInputValue] = React.useState("");
-  // 【二开·P-TPL·U9】起 —— 模板管理面板开合状态（就地管理，不再跳页）
+  // [fork P-TPL U9] begin — template management panel open state (managed inline, no page jump)
   const [mgrOpen, setMgrOpen] = React.useState(false);
-  // 【二开·P-TPL·U9】止
+  // [fork P-TPL U9] end
 
   const loadTemplates = React.useCallback(() => {
     adapter
@@ -100,8 +100,8 @@ export function PromptTemplateControls({
     setInputValue(selectedTemplate?.name ?? "");
   }, [selectedTemplate]);
 
-  // 选中模板 = 正文灌入覆盖框（模板打底、可再手改，提交时手改优先——K22）；
-  // 清空选择 = 仅解除关联，不动已灌文本（用户可能已在微调）。
+  // Selecting a template = body filled into the override box (template as base, editable; manual edits win on submit — K22);
+  // Clearing the selection = only unlink; the filled text is kept (the user may already be tweaking it).
   const chooseTemplate = (tpl: PlannerTemplate | null) => {
     if (!tpl) {
       setInputValue("");
@@ -111,24 +111,24 @@ export function PromptTemplateControls({
     setInputValue(tpl.name);
     onTemplateIDChange(tpl.id);
     onPromptChange(tpl.body);
-    toast.success(`已灌入模板「${tpl.name}」，可在下方微调`);
+    toast.success(`Template \"${tpl.name}\" loaded — tweak it below`);
   };
 
-  let pickerPlaceholder = loading ? "正在加载模板" : adapter.emptyText;
-  if (!loading && templates.length > 0) pickerPlaceholder = "默认：跟随模板库默认模板";
+  let pickerPlaceholder = loading ? "Loading templates" : adapter.emptyText;
+  if (!loading && templates.length > 0) pickerPlaceholder = "Default: follow the template library default";
 
   return (
     <>
-      {/* 控件 1：模板选择 + 就地管理入口 */}
+      {/* Control 1: template picker + inline management entry */}
       <Field>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <FieldLabel htmlFor={adapter.pickerId}>{adapter.pickerLabel}</FieldLabel>
-          {/* 【二开·P-TPL·U9】起 —— 就地打开模板管理面板（原跳转 /system/agents 再点 chip 两步操作）；关闭后刷新列表让新建立即可选 */}
+          {/* [fork P-TPL U9] begin — open the template panel inline (previously a two-step jump to /system/agents then chip click); list refreshes on close so new templates are immediately selectable */}
           <Button type="button" variant="ghost" size="sm" onClick={() => setMgrOpen(true)}>
             <Settings2Icon data-icon="inline-start" />
-            管理
+            Manage
           </Button>
-          {/* 【二开·P-TPL·U9】止 */}
+          {/* [fork P-TPL U9] end */}
         </div>
         <Combobox
           items={templates}
@@ -147,7 +147,7 @@ export function PromptTemplateControls({
             showClear
           />
           <ComboboxContent portalContainer={portalContainer}>
-            <ComboboxEmpty>没有匹配的模板</ComboboxEmpty>
+            <ComboboxEmpty>No matching templates</ComboboxEmpty>
             <ComboboxList>
               {(t) => (
                 <ComboboxItem key={t.id} value={t}>
@@ -155,7 +155,7 @@ export function PromptTemplateControls({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {t.name}
-                      {t.is_default ? "（默认）" : ""}
+                      {t.is_default ? " (default)" : ""}
                     </p>
                     <p className="text-muted-foreground truncate text-xs">{t.body}</p>
                   </div>
@@ -167,7 +167,7 @@ export function PromptTemplateControls({
         <FieldDescription>{adapter.pickerDescription}</FieldDescription>
       </Field>
 
-      {/* 控件 2：提示词覆盖（等宽 Textarea，含变量提示） */}
+      {/* Control 2: prompt override (monospace Textarea with variable hints) */}
       <Field>
         <FieldLabel htmlFor={adapter.overrideId}>{adapter.overrideLabel}</FieldLabel>
         <Textarea
@@ -180,10 +180,10 @@ export function PromptTemplateControls({
         <FieldDescription>{adapter.overrideDescription}</FieldDescription>
       </Field>
 
-      {/* 扩展区（如 planner 的 Worker 数量控件） */}
+      {/* Extension area (e.g. planner's Worker count control) */}
       {children}
 
-      {/* 【二开·P-TPL·U9】起 —— 模板管理面板（Sheet 内再开 Sheet 走 portal，互不干扰）；关闭后刷新列表 */}
+      {/* [fork P-TPL U9] begin — template management panel (a Sheet within a Sheet via portal, no interference); list refreshes on close */}
       <adapter.Manager
         open={mgrOpen}
         onOpenChange={(o) => {
@@ -191,56 +191,56 @@ export function PromptTemplateControls({
           if (!o) loadTemplates();
         }}
       />
-      {/* 【二开·P-TPL·U9】止 */}
+      {/* [fork P-TPL U9] end */}
     </>
   );
 }
 
-// ── planner / worker 适配器与固定出口 ──────────────────────────────────────────
-// planner 的 Worker 数量输入走 children 扩展区；其余逻辑两域逐行相同。
+// ── planner / worker adapters and fixed exports ──────────────────────────────────────────
+// planner's Worker count input goes through the children extension area; everything else is identical across domains.
 
 const plannerControlsAdapter: PromptTemplateControlsAdapter = {
   list: () => api.plannerTemplates(),
-  loadErrorPrefix: "加载规划模板失败",
-  pickerLabel: "规划模板（planner）",
+  loadErrorPrefix: "Failed to load planner templates",
+  pickerLabel: "Planner template (planner)",
   pickerId: "planner-template-picker",
-  emptyText: "暂无规划模板",
+  emptyText: "No planner templates",
   pickerDescription:
-    "选择 planner 的规划风格模板；选择后正文自动灌入下方「规划提示词覆盖」，可再手改。优先级：手改覆盖 > 所选模板 > 默认模板。",
-  overrideLabel: "规划提示词覆盖（可选）",
+    "Choose a planning-style template for the planner; its body is auto-filled into \"Planner prompt override\" below and can be edited. Precedence: manual override > selected template > default template.",
+  overrideLabel: "Planner prompt override (optional)",
   overrideId: "planner-prompt-override",
   overridePlaceholder:
-    "留空 = 使用上方所选模板/默认模板原文；选模板后自动灌入，可在此微调（Go template，可用变量 {{.Goal}} {{.Scope}} {{.AssetSummary}} {{.DataDir}} {{.Now}}）",
+    "Empty = use the selected/default template text above; auto-filled on selection and editable here (Go template; variables {{.Goal}} {{.Scope}} {{.AssetSummary}} {{.DataDir}} {{.Now}} available)",
   overrideDescription:
-    "全文替换 planner 提示词正文（段 [A]），仅本任务生效；代码占有的尾部规约（流量工具/中间产物输出规约）不可覆盖。",
+    "Replaces the planner prompt body (section [A]) for this task only; the code-owned tail rules (traffic tools / intermediate-output rules) cannot be overridden.",
   Manager: PlannerTemplateManager,
 };
 
 const workerControlsAdapter: PromptTemplateControlsAdapter = {
   list: () => api.workerTemplates(),
-  loadErrorPrefix: "加载 Worker 模板失败",
-  pickerLabel: "Worker 模板（worker）",
+  loadErrorPrefix: "Failed to load Worker templates",
+  pickerLabel: "Worker template (worker)",
   pickerId: "worker-template-picker",
-  emptyText: "暂无 Worker 模板",
+  emptyText: "No Worker templates",
   pickerDescription:
-    "选择 Worker 的执行提示词模板；选择后正文自动灌入下方「Worker 提示词覆盖」，可再手改。优先级：手改覆盖 > 所选模板 > 默认模板。",
-  overrideLabel: "Worker 提示词覆盖（可选）",
+    "Choose an execution prompt template for the Worker; its body is auto-filled into \"Worker prompt override\" below and can be edited. Precedence: manual override > selected template > default template.",
+  overrideLabel: "Worker prompt override (optional)",
   overrideId: "worker-prompt-override",
   overridePlaceholder:
-    "留空 = 使用上方所选模板/默认模板原文；选模板后自动灌入，可在此微调（Go template，可用变量 {{.WorkerName}} {{.ProxyAddr}} {{.DataDir}} {{.Now}}）",
+    "Empty = use the selected/default template text above; auto-filled on selection and editable here (Go template; variables {{.WorkerName}} {{.ProxyAddr}} {{.DataDir}} {{.Now}} available)",
   overrideDescription:
-    "全文替换 Worker 提示词正文，仅本任务生效；代码占有的尾部规约（流量工具/中间产物输出规约）不可覆盖。",
+    "Replaces the Worker prompt body for this task only; the code-owned tail rules (traffic tools / intermediate-output rules) cannot be overridden.",
   Manager: WorkerTemplateManager,
 };
 
 interface PlannerTemplateControlsProps {
-  plannerTemplateID: number | null; // 选中的规划模板；null=跟随模板库默认
+  plannerTemplateID: number | null; // selected planner template; null = follow library default
   onPlannerTemplateIDChange: (id: number | null) => void;
-  plannerPrompt: string; // 规划提示词覆盖；''=不覆盖（选模板后自动灌入正文，可再手改）
+  plannerPrompt: string; // planner prompt override; '' = no override (auto-filled on selection, editable)
   onPlannerPromptChange: (v: string) => void;
-  workerCount: string; // 输入态字符串；''=0=跟随全局默认
+  workerCount: string; // input string; '' = 0 = follow global default
   onWorkerCountChange: (v: string) => void;
-  portalContainer?: React.RefObject<HTMLDivElement | null>; // Combobox 弹层挂点（Sheet 内滚动容器）
+  portalContainer?: React.RefObject<HTMLDivElement | null>; // Combobox popover mount point (scroll container inside a Sheet)
 }
 
 export function PlannerTemplateControls({
@@ -261,22 +261,22 @@ export function PlannerTemplateControls({
       adapter={plannerControlsAdapter}
       portalContainer={portalContainer}
     >
-      {/* 控件 3：Worker 数量（0~16，0=跟随全局） */}
+      {/* Control 3: Worker count (0–16, 0 = follow global) */}
       <Field>
-        <FieldLabel htmlFor="worker-count">Worker 数量</FieldLabel>
+        <FieldLabel htmlFor="worker-count">Worker count</FieldLabel>
         <Input
           id="worker-count"
           type="number"
           min={0}
           max={16}
           className="w-40"
-          placeholder="0 = 跟随全局"
+          placeholder="0 = follow global"
           value={workerCount}
           onChange={(e) => onWorkerCountChange(e.target.value)}
         />
         <FieldDescription>
-          本任务并行执行的 worker 数（1~16）；0/留空 = 跟随全局默认。多 worker 适合大范围扫描类任务，单 worker
-          适合精细利用。
+          Number of workers running in parallel for this task (1–16); 0/empty = global default. Multiple workers suit broad scanning tasks; a single worker
+          suits careful exploitation.
         </FieldDescription>
       </Field>
     </PromptTemplateControls>
@@ -284,11 +284,11 @@ export function PlannerTemplateControls({
 }
 
 interface WorkerTemplateControlsProps {
-  workerTemplateID: number | null; // 选中的 Worker 模板；null=跟随模板库默认
+  workerTemplateID: number | null; // selected Worker template; null = follow library default
   onWorkerTemplateIDChange: (id: number | null) => void;
-  workerPrompt: string; // Worker 提示词覆盖；''=不覆盖（选模板后自动灌入正文，可再手改）
+  workerPrompt: string; // Worker prompt override; '' = no override (auto-filled on selection, editable)
   onWorkerPromptChange: (v: string) => void;
-  portalContainer?: React.RefObject<HTMLDivElement | null>; // Combobox 弹层挂点（Sheet 内滚动容器）
+  portalContainer?: React.RefObject<HTMLDivElement | null>; // Combobox popover mount point (scroll container inside a Sheet)
 }
 
 export function WorkerTemplateControls({

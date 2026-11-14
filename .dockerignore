@@ -23,7 +23,6 @@ transcripts
 *.key
 *.pem
 config-export/
-evidence/
 backup/
 /dev/
 bench/kv

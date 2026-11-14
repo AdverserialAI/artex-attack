@@ -1,9 +1,9 @@
-// 生产构建替代 lib/mock/logs 的空桩：next.config.mjs 在非 MOCK 构建通过 resolveAlias
-// 把 "@/lib/mock/logs" 指到本模块。运行时永远走不到这里（只有 MOCK 判定为 true 才会
-// 加载，而那种构建不做本 alias）。
+// Empty stub replacing lib/mock/logs in production builds: next.config.mjs uses resolveAlias in non-MOCK builds
+// to point "@/lib/mock/logs" at this module. Never reached at runtime (it only loads when MOCK is true,
+// and that build does not apply this alias).
 /**
- * 主要函数/类型：
- *   - MOCK_LOGS：空日志数组桩（替代 mock/logs 的示例数据）
+ * Main functions/types:
+ *   - MOCK_LOGS: empty log-array stub (replaces the mock/logs sample data)
  */
 import type { LogLine } from "@/lib/types";
 

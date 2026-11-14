@@ -1,8 +1,8 @@
 /**
- * sort-preference.ts：表格/列表排序偏好的本地持久化 Hook。
- * 主要函数/类型：
- *   - SortDirection / SortPreference：排序方向与偏好结构
- *   - useStoredSortPreference：从 localStorage 恢复并回写排序偏好的 Hook
+ * sort-preference.ts: local-persistence hook for table/list sort preferences.
+ * Main functions/types:
+ *   - SortDirection / SortPreference: sort direction and preference shape
+ *   - useStoredSortPreference: hook that restores and writes back sort preferences from localStorage
  */
 "use client";
 

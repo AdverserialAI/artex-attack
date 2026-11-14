@@ -1,8 +1,8 @@
 /**
- * topology-canvas.tsx：拓扑图画布，基于 React Flow 渲染自定义节点卡片/分组框/连线并处理交互。
- * 主要函数/类型：
- *   - TopologyCanvas / TopologyCanvasInner：画布组件，整图转 RF 节点/边，处理点选、移动、框选回调
- *   - TopologyCanvasProps：画布入参契约；NodeMovePayload / BoxSelectRect：移动与框选载荷类型
+ * topology-canvas.tsx: topology canvas; renders custom node cards/group frames/edges with React Flow and handles interactions.
+ * Main functions/types:
+ *   - TopologyCanvas / TopologyCanvasInner: canvas components; converts the whole graph to RF nodes/edges and handles select/move/box-select callbacks
+ *   - TopologyCanvasProps: canvas prop contract; NodeMovePayload / BoxSelectRect: move and box-select payload types
  */
 "use client";
 "use no memo";
@@ -57,7 +57,7 @@ function groupNodeID(id: number): string {
   return `${GROUP_PREFIX}${id}`;
 }
 
-/** 入口状态 → 卡片描边与角标（描边在 dark 下同样可读，Tailwind 只负责角标配色）。 */
+/** Entry status → card outline and corner badge (outline stays readable in dark mode; Tailwind only colors the badge). */
 type EntryTone = {
   stroke: string;
   dashed: boolean;
@@ -70,7 +70,7 @@ function entryTone(status: string): EntryTone {
     return {
       stroke: "#10b981",
       dashed: false,
-      badge: "入口",
+      badge: "Entry",
       badgeClass:
         "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300",
     };
@@ -79,7 +79,7 @@ function entryTone(status: string): EntryTone {
     return {
       stroke: "#f59e0b",
       dashed: true,
-      badge: "疑似入口",
+      badge: "Suspected",
       badgeClass:
         "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/70 dark:text-amber-300",
     };
@@ -87,19 +87,19 @@ function entryTone(status: string): EntryTone {
   return { stroke: "", dashed: false, badge: "", badgeClass: "" };
 }
 
-// 自定义元素：draw.io 风格的节点卡片 / 分组容器 / smoothstep 连线。
+// Custom elements: draw.io-style node cards / group containers / smoothstep edges.
 
 type TopoCardData = {
   title: string;
   subtitle: string;
-  /** 节点事实一句话（"是什么"），空串不渲染第三行。 */
+  /** One-line node fact ("what it is"); the third row is not rendered when empty. */
   description: string;
   badge: string;
   badgeClass: string;
   toneStroke: string;
   toneDashed: boolean;
   connectFrom: boolean;
-  /** 节点自定义颜色（"" = 默认）。 */
+  /** Custom node color ("" = default). */
   color: string;
 };
 type TopoCardNode = RFNode<TopoCardData, "topology">;
@@ -108,21 +108,21 @@ type GroupCardData = {
   name: string;
   width: number;
   height: number;
-  /** 缩放结束（含位置）回传编辑器持久化。 */
+  /** Zoom end (including position) is reported back to the editor for persistence. */
   onResized: (params: { x: number; y: number; width: number; height: number }) => void;
   onRename: () => void;
   onDelete: () => void;
 };
 /**
- * 类型名刻意不用 "group"：RF 基础样式给 .react-flow__node-group 写死
- * width:150px + padding:10px + 边框/底色，会把自定义框压成 150px（实测的"外框 bug"）。
+ * The type name deliberately avoids "group": RF base styles hard-code
+ * width:150px + padding:10px + border/background on .react-flow__node-group, which would squash the custom frame to 150px (the observed "frame bug").
  */
 type GroupCardNode = RFNode<GroupCardData, "frame">;
 
 type CanvasNode = TopoCardNode | GroupCardNode;
 
 function TopoCard({ data, selected }: NodeProps<TopoCardNode>) {
-  // 自定义颜色优先：非空时描边与标题都用它（draw.io 的样式覆盖语义）。
+  // Custom color wins: when set, both outline and title use it (draw.io style-override semantics).
   const borderColor = data.color || data.toneStroke || undefined;
   return (
     <div
@@ -165,7 +165,7 @@ function TopoCard({ data, selected }: NodeProps<TopoCardNode>) {
 
 function GroupCard({ data, selected, id }: NodeProps<GroupCardNode>) {
   const [confirmingDelete, setConfirmingDelete] = React.useState(false);
-  // 选中变化（含删除后节点卸载前）时复位确认态。
+  // Reset the confirmation state on selection changes (including before a node unmounts after deletion).
   if (!selected && confirmingDelete) setConfirmingDelete(false);
   return (
     <div
@@ -175,7 +175,7 @@ function GroupCard({ data, selected, id }: NodeProps<GroupCardNode>) {
       )}
       style={{ width: data.width, height: data.height }}
     >
-      {/* 分组名常驻显示（原先仅在选中时的 NodeToolbar 里可见）。 */}
+      {/* Group name is always visible (previously only in NodeToolbar when selected). */}
       <div className="pointer-events-none absolute -top-6 left-1 max-w-full truncate text-xs font-medium text-muted-foreground">
         {data.name}
       </div>
@@ -195,7 +195,7 @@ function GroupCard({ data, selected, id }: NodeProps<GroupCardNode>) {
             data.onRename();
           }}
         >
-          重命名
+          Rename
         </button>
         {confirmingDelete ? (
           <button
@@ -207,7 +207,7 @@ function GroupCard({ data, selected, id }: NodeProps<GroupCardNode>) {
               data.onDelete();
             }}
           >
-            确认删除？成员保留
+            Confirm delete? Members kept
           </button>
         ) : (
           <button
@@ -218,7 +218,7 @@ function GroupCard({ data, selected, id }: NodeProps<GroupCardNode>) {
               setConfirmingDelete(true);
             }}
           >
-            删除分组
+            Delete group
           </button>
         )}
       </NodeToolbar>
@@ -272,11 +272,11 @@ function TopologyEdge({
 const nodeTypes = { topology: TopoCard, frame: GroupCard };
 const edgeTypes = { topology: TopologyEdge };
 
-// 后端整图 → React Flow 数据。
+// Backend full graph → React Flow data.
 
 /**
- * 图数据转 RF 节点。坐标以 DB 为准（组内节点是相对坐标，天然匹配 RF 的 parentId 语义）；
- * 仅当父子关系没变时保留画布上的当前位置，避免轮询/保存回包时节点跳回旧坐标。
+ * Converts graph data to RF nodes. Coordinates follow the DB (intra-group nodes are relative, which naturally matches RF parentId semantics);
+ * Current canvas positions are kept only when parentage is unchanged, so poll/save responses don't snap nodes back to old coordinates.
  */
 function buildRFNodes(
   graph: TopologyGraph,
@@ -363,7 +363,7 @@ function buildRFEdges(graph: TopologyGraph): TopoRFEdge[] {
     });
 }
 
-/** 把框选 rect 归一化为 {x,y 左上角 + 正宽高}（flow 坐标与屏幕坐标 y 轴同向，直接 min/max）。 */
+/** Normalizes a box-select rect to {x,y top-left + positive width/height} (flow and screen y-axes point the same way, so plain min/max). */
 function normalizeRect(
   a: { x: number; y: number },
   b: { x: number; y: number },
@@ -402,7 +402,7 @@ export type TopologyCanvasProps = {
   onPaneClick: () => void;
 };
 
-// taskId 仍在 Props 契约里（topology-editor 会传），画布内不再用到它。
+// taskId remains in the props contract (topology-editor passes it), but the canvas no longer uses it.
 export function TopologyCanvas(props: TopologyCanvasProps) {
   return (
     <ReactFlowProvider>
@@ -431,16 +431,16 @@ function TopologyCanvasInner({
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<CanvasNode>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<TopoRFEdge>([]);
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
-  /** 拖拽中的橡皮筋（wrapper 局部坐标，仅用于渲染）。 */
+  /** Rubber band while dragging (wrapper-local coordinates, render only). */
   const [band, setBand] = React.useState<BoxSelectRect | null>(null);
   const bandRef = React.useRef<{ startLocal: { x: number; y: number }; startFlow: { x: number; y: number } } | null>(
     null,
   );
 
-  // 回调与图都走 ref：框选的全局 mousemove/mouseup 闭包创建后也能读到最新值。
+  // Callbacks and graph both go through refs: the global mousemove/mouseup closures created for box-select still read the latest values.
   const handlersRef = React.useRef({ graph, onBoxSelect });
   handlersRef.current = { graph, onBoxSelect };
-  // 分组回调同理走 ref：buildRFNodes 在 effect 里调用，不能因回调身份变化而重跑。
+  // Group callbacks also go through refs: buildRFNodes runs in an effect and must not re-run just because callback identities change.
   const groupHandlersRef = React.useRef({
     onResized: onGroupResized,
     onRename: onGroupRename,
@@ -448,7 +448,7 @@ function TopologyCanvasInner({
   });
   groupHandlersRef.current = { onResized: onGroupResized, onRename: onGroupRename, onDelete: onGroupDelete };
 
-  // 后端整图 / 选中态 / 连线起点变化 → 重建节点与边（保留画布当前位置，不做本地推断）。
+  // Backend graph / selection / connection-source changes → rebuild nodes and edges (keeping current canvas positions, no local inference).
   React.useEffect(() => {
     setRfNodes((prev) =>
       buildRFNodes(
@@ -467,14 +467,14 @@ function TopologyCanvasInner({
     setRfEdges(buildRFEdges(graph));
   }, [graph, setRfEdges]);
 
-  // 退出框选模式时中止进行中的框选（已挂的全局监听在 mouseup 里看到 bandRef 为空会直接返回）。
+  // Exiting box-select mode aborts an in-progress selection (the attached global listeners return early on mouseup when bandRef is empty).
   React.useEffect(() => {
     if (!boxSelectMode) bandRef.current = null;
   }, [boxSelectMode]);
 
   const handleWrapperMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!boxSelectMode || event.button !== 0) return;
-    // 只有空白画布的 mousedown 才起框；节点/控件上的不触发。
+    // Only mousedown on empty canvas starts a selection; node/control clicks don't trigger it.
     if (!(event.target as HTMLElement).closest(".react-flow__pane")) return;
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
@@ -496,12 +496,12 @@ function TopologyCanvasInner({
       setBand(null);
       if (!pending) return;
       const endLocal = toLocal(upEvent.clientX, upEvent.clientY);
-      // 小于阈值的拖拽视为普通点击，交给 React Flow 的 onPaneClick。
+      // Drags below the threshold count as normal clicks, delegated to React Flow's onPaneClick.
       if (Math.abs(endLocal.x - pending.startLocal.x) < 4 && Math.abs(endLocal.y - pending.startLocal.y) < 4) return;
       const { graph: current, onBoxSelect: emit } = handlersRef.current;
       if (!emit) return;
       const rect = normalizeRect(pending.startFlow, screenToFlowPosition({ x: upEvent.clientX, y: upEvent.clientY }));
-      // 成员判定：绝对中心落在 rect 内（简单数学，无需 hook）。
+      // Membership: absolute center inside the rect (simple math, no hook needed).
       const members = current.nodes.filter((node) => {
         const abs = absolutePosition(node, current.groups);
         const cx = abs.x + NODE_W / 2;
@@ -524,7 +524,7 @@ function TopologyCanvasInner({
     }
     const topo = graph.nodes.find((item) => item.ip === node.id);
     if (!topo) return;
-    // RF 里子节点坐标相对父节点左上角；DB 的组内坐标同语义，换算回绝对坐标做命中判定。
+    // RF child coordinates are relative to the parent's top-left; DB intra-group coordinates share this semantics, so convert back to absolute for hit testing.
     const oldGroup = node.parentId ? graph.groups.find((item) => groupNodeID(item.id) === node.parentId) : undefined;
     const absX = node.position.x + (oldGroup ? oldGroup.x : 0);
     const absY = node.position.y + (oldGroup ? oldGroup.y : 0);
@@ -541,7 +541,7 @@ function TopologyCanvasInner({
       return;
     }
     if ((topo.group_id ?? null) === hit.id) {
-      // 留在原组：直接换算回组内相对坐标，不做边界夹取（与原实现一致）。
+      // Staying in the same group: convert straight back to intra-group relative coordinates, no boundary clamping (same as the original implementation).
       onNodeMoved({ ip: node.id, groupID: hit.id, x: Math.round(absX - hit.x), y: Math.round(absY - hit.y) });
       return;
     }
@@ -561,7 +561,7 @@ function TopologyCanvasInner({
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: 画布容器需要捕获鼠标拖拽以绘制框选矩形（仅框选模式下响应）。
+    // biome-ignore lint/a11y/noStaticElementInteractions: the canvas container must capture mouse drags to draw the selection rectangle (box-select mode only).
     <div
       ref={wrapperRef}
       role="presentation"
@@ -618,7 +618,7 @@ function TopologyCanvasInner({
         />
       ) : null}
 
-      {/* 图例（组合色 + 入口状态） */}
+      {/* Legend (group colors + entry states) */}
       <div className="pointer-events-none absolute top-3 left-3 flex flex-col gap-2 rounded-lg border bg-card/95 p-3 text-xs shadow-sm backdrop-blur">
         <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-foreground">
           {Object.entries(EDGE_KIND_META).map(([kind, meta]) => (
@@ -635,7 +635,7 @@ function TopologyCanvasInner({
           {Object.entries(ENTRY_STATUS_LABEL).map(([status, label]) => (
             <span key={status || "none"}>{label}</span>
           ))}
-          <span>{`分组框 ${GROUP_DEFAULT_W}×${GROUP_DEFAULT_H} 可拖动`}</span>
+          <span>{`Group frames ${GROUP_DEFAULT_W}×${GROUP_DEFAULT_H} are draggable`}</span>
         </div>
       </div>
 
@@ -643,7 +643,7 @@ function TopologyCanvasInner({
         <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-lg border border-blue-400/60 bg-blue-50 px-3 py-1.5 font-medium text-blue-700 text-xs shadow-sm dark:bg-blue-950/70 dark:text-blue-200">
             <Link2 className="size-3.5" />
-            {connectFrom ? "点击目标节点完成连线" : "点击源节点（联系人从它出发）"} · 按 Esc 取消
+            {connectFrom ? "Click the target node to finish the connection" : "Click a source node (the connection starts from it)"} · Esc to cancel
           </div>
         </div>
       ) : null}
@@ -652,7 +652,7 @@ function TopologyCanvasInner({
         <div className="pointer-events-none absolute top-3 right-3">
           <div className="flex items-center gap-1.5 rounded-lg border bg-card/95 px-2.5 py-1.5 text-xs shadow-sm">
             <Loader2 className="size-3.5 animate-spin" />
-            保存中
+            Saving
           </div>
         </div>
       ) : null}
@@ -661,7 +661,7 @@ function TopologyCanvasInner({
         <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2">
           <div className="flex items-center gap-1.5 rounded-lg border bg-card/95 px-3 py-1.5 text-muted-foreground text-xs shadow-sm">
             <Crosshair className="size-3.5" />
-            还没有节点，点工具栏「从资产生成初始拓扑」或「导入 JSON」
+            No nodes yet — use the toolbar's "Generate initial topology from assets" or "Import JSON"
           </div>
         </div>
       ) : null}

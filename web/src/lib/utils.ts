@@ -1,10 +1,10 @@
 /**
- * utils.ts：通用工具函数集合。
- * 主要函数/类型：
- *   - cn：clsx + tailwind-merge 的类名合并
- *   - radixOverlayWasOpenAtPointerDown：抽屉内弹层打开时的外部点击关闭判定辅助
- *   - copyText / getInitials / fmtBytes / fmtTokens / fmtTime：复制、姓名缩写与格式化工具
- *   - statusTone：HTTP 状态码映射 tailwind 文本色
+ * utils.ts: shared utility functions.
+ * Main functions/types:
+ *   - cn: class-name merging via clsx + tailwind-merge
+ *   - radixOverlayWasOpenAtPointerDown: helper for outside-click close decisions while an overlay is open inside a drawer
+ *   - copyText / getInitials / fmtBytes / fmtTokens / fmtTime: copy, name-initial, and formatting helpers
+ *   - statusTone: maps HTTP status codes to Tailwind text colors
  */
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -13,16 +13,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// 抽屉/对话框(Sheet/Dialog)的 onInteractOutside 关闭判定辅助。
+// Helper for onInteractOutside close decisions in drawers/dialogs (Sheet/Dialog).
 //
-// 背景:抽屉内的 Radix 弹层(Select 下拉、DropdownMenu、Popover 等)会 portal 到抽屉
-// 之外。开着弹层时点遮罩/抽屉外想收起它,这一次 pointerdown 会被 Select 和 Sheet 两个
-// DismissableLayer 同时处理;Select 先关闭且是 discrete 事件、React 会同步 flush,于是
-// 轮到 Sheet 的处理器时弹层的 data-state 早已翻成 closed —— 在"当下"检测弹层是否打开
-// 天然不可靠(实测已验证)。
+// Background: Radix overlays inside a drawer (Select dropdowns, DropdownMenu, Popover, etc.) portal outside the drawer.
+// When a popover is open and you click the overlay/outside to dismiss it, that pointerdown is processed by both Select and Sheet
+// DismissableLayers; Select closes first and, being a discrete event, React flushes synchronously, so
+// by the time Sheet's handler runs, the popover's data-state has already flipped to closed — checking whether an overlay is open "right now"
+// is inherently unreliable (verified experimentally).
 //
-// 正确做法:Radix 的 pointerdown 监听在冒泡阶段;我们在 capture 阶段(早于它)先把
-// "此刻有没有弹层开着"记录下来,onInteractOutside 再读这个记录值来决定是否放行关闭。
+// The correct approach: Radix listens for pointerdown in the bubble phase; we record
+// "is any overlay open right now" in the capture phase (earlier), and onInteractOutside reads that record to decide whether to allow closing.
 function isRadixOverlayOpenNow(): boolean {
   if (typeof document === "undefined") return false;
   return !!document.querySelector(
@@ -43,26 +43,26 @@ if (typeof document !== "undefined") {
     () => {
       overlayOpenAtLastPointerDown = isRadixOverlayOpenNow();
     },
-    true, // capture:抢在 Radix 冒泡阶段的 pointerdown 处理器之前记录
+    true, // capture: record before Radix's bubble-phase pointerdown handler runs
   );
 }
 
-// radixOverlayWasOpenAtPointerDown 返回"最近一次 pointerdown 发生时是否有 Radix 弹层
-// 开着"。抽屉/对话框据此:开着弹层时点遮罩 → 只收弹层、不关自身。
+// radixOverlayWasOpenAtPointerDown returns whether a Radix overlay was open at the most recent pointerdown.
+// Drawers/dialogs use it so that clicking the overlay with a popover open only dismisses the popover, not themselves.
 export function radixOverlayWasOpenAtPointerDown(): boolean {
   return overlayOpenAtLastPointerDown;
 }
 
-// copyText 把文本写入剪贴板,返回是否成功。
-// 背景:navigator.clipboard 仅在安全上下文(HTTPS / localhost)可用;通过 IP + HTTP
-// 访问时它为 undefined,此时降级到 execCommand("copy")。
+// copyText writes text to the clipboard and returns whether it succeeded.
+// Background: navigator.clipboard is only available in secure contexts (HTTPS / localhost); over IP + HTTP
+// it is undefined, so fall back to execCommand("copy").
 export async function copyText(text: string): Promise<boolean> {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
     } catch {
-      // 继续走降级方案
+      // continue with the fallback
     }
   }
   try {
@@ -96,8 +96,8 @@ export const getInitials = (str: string): string => {
   );
 };
 
-// fmtBytes renders a human file size: ≥1 MiB → "x.x MB"，≥1 KiB → "x.x KB"，否则 "N B"。
-// 附件 chips、上传清单等共用；需要 GB 或空值语义的版本（如 traffic 页）保留局部实现。
+// fmtBytes renders a human file size: ≥1 MiB → "x.x MB", ≥1 KiB → "x.x KB", otherwise "N B".
+// Shared by attachment chips, upload lists, etc.; variants needing GB or empty-value semantics (e.g. the traffic page) keep local implementations.
 export function fmtBytes(n: number): string {
   if (n >= 1 << 20) return `${(n / (1 << 20)).toFixed(1)} MB`;
   if (n >= 1 << 10) return `${(n / (1 << 10)).toFixed(1)} KB`;
@@ -111,9 +111,9 @@ export function fmtTokens(n: number): string {
   return String(n);
 }
 
-// fmtTime 把后端时间戳格式化为 zh-CN 的 月/日 时:分:秒（列表与详情共用）。
+// fmtTime formats backend timestamps as en-US month/day hour:minute:second (shared by list and detail views).
 export function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN", {
+  return new Date(ts).toLocaleString("en-US", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -122,7 +122,7 @@ export function fmtTime(ts: string) {
   });
 }
 
-// statusTone 按 HTTP 状态码返回 tailwind 文本色类（资产/流量/报文查看共用）。
+// statusTone returns Tailwind text-color classes by HTTP status code (shared by asset/traffic/message views).
 export function statusTone(status: number) {
   if (status >= 500) return "text-red-500";
   if (status >= 400) return "text-amber-500";

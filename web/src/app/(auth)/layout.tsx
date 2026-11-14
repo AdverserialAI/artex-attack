@@ -1,7 +1,8 @@
 /**
- * layout.tsx：(auth) 路由组布局，当前为透传壳，仅包裹登录/初始化页面。
- * 主要函数/类型：
- *   - AuthLayout：直接渲染 children
+ * layout.tsx: (auth) route-group layout; currently a pass-through shell that
+ * only wraps the login/setup pages.
+ * Main functions/types:
+ *   - AuthLayout: renders children directly
  */
 import type { ReactNode } from "react";
 

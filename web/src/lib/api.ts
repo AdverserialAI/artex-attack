@@ -1,9 +1,9 @@
 /**
- * api.ts：按域拆分实现（lib/api/*.ts）的聚合面，此处 spread 聚合并保持原单文件
- * 字面体的键序；调用点一律继续 import { api } from "@/lib/api"。
- * 主要函数/类型：
- *   - api / Api：聚合 tasks/llm-agents/intercept/misc 各域 API 的 facade 对象及其类型
- *   - http / sseUrl：re-export 的底层请求客户端与 SSE 地址构造
+ * api.ts: facade aggregating the per-domain implementations (lib/api/*.ts); spread-merged here while preserving the original single-file
+ * literal key order; call sites continue to import { api } from "@/lib/api".
+ * Main functions/types:
+ *   - api / Api: facade object and type aggregating the tasks/llm-agents/intercept/misc domain APIs
+ *   - http / sseUrl: re-exported low-level request client and SSE URL construction
  */
 
 import { http, sseUrl } from "@/lib/api/http";
@@ -23,8 +23,8 @@ export type Api = typeof api;
 
 export { http, sseUrl };
 
-// 键序锚定：API_KEYS 顺序即上方 spread 顺序，与原单文件字面体逐键一致。tuple 的
-// satisfies 保证每个键都是 api 成员（防拆分引入拼错的键），Exclude 检查保证无遗漏。
+// Key-order anchor: API_KEYS order matches the spread order above, key-for-key identical to the original single-file literal. The tuple's
+// satisfies guarantees every key is an api member (guards against misspelled keys from the split); the Exclude check guarantees none are missing.
 const API_KEYS = [
   "health",
   "authStatus",
@@ -302,9 +302,6 @@ const API_KEYS = [
   "llmTasks",
   "llmRecordsDeleteTask",
   "tokensByModel",
-  "checkUpdate",
-  "applyUpdate",
-  "rollbackUpdate",
 ] as const satisfies readonly (keyof typeof api)[];
 type ExpectNever<T extends never> = T;
 type _AllApiKeysDocumented = ExpectNever<Exclude<keyof typeof api, (typeof API_KEYS)[number]>>;

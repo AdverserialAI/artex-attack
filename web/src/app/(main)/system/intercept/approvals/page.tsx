@@ -1,7 +1,7 @@
 /**
- * page.tsx：拦截审批记录页——仅渲染 ApprovalRecords 组件。
- * 主要函数/类型：
- *   - ApprovalsPage：默认导出页组件
+ * page.tsx: intercept approval records page — renders only the ApprovalRecords component.
+ * Main functions/types:
+ *   - ApprovalsPage: default-exported page component
  */
 import { ApprovalRecords } from "@/components/approval-records";
 

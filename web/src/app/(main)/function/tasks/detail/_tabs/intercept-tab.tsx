@@ -1,7 +1,7 @@
 /**
- * intercept-tab.tsx：拦截记录面板，包装 ApprovalRecords 展示任务的人工审批记录。
- * 主要函数/类型：
- *   - InterceptTab：按 taskId 渲染 ApprovalRecords 的薄封装。
+ * intercept-tab.tsx: intercept records panel; wraps ApprovalRecords to show a task's manual approval records.
+ * Main functions/types:
+ *   - InterceptTab: thin wrapper rendering ApprovalRecords by taskId.
  */
 "use client";
 

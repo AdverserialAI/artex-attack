@@ -1,7 +1,7 @@
 /**
- * topology-edge-dialog.tsx：新建拓扑连线的弹窗（线型、标签、颜色选择）。
- * 主要函数/类型：
- *   - CreateEdgeDialog：表单弹窗，提交新边到后端；ConnPair：待连接源/目标 IP 对
+ * topology-edge-dialog.tsx: dialog for creating topology edges (line type, label, color selection).
+ * Main functions/types:
+ *   - CreateEdgeDialog: form dialog that submits a new edge to the backend; ConnPair: source/target IP pair to connect
  */
 "use client";
 
@@ -60,7 +60,7 @@ export function CreateEdgeDialog({
       label: label.trim(),
     };
     if (color) body.color = color;
-    const next = await run(() => api.addTopologyEdge(taskId, body), "联系已添加");
+    const next = await run(() => api.addTopologyEdge(taskId, body), "Connection added");
     if (next) onClose();
   }
 
@@ -73,12 +73,12 @@ export function CreateEdgeDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>添加联系</DialogTitle>
+          <DialogTitle>Add connection</DialogTitle>
           <DialogDescription className="font-mono text-xs">{pair ? `${pair.src} → ${pair.dst}` : ""}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="topology-edge-kind">联系类型</Label>
+            <Label htmlFor="topology-edge-kind">Connection type</Label>
             <Select value={kind} onValueChange={(v) => setKind(v as TopologyEdgeKind)}>
               <SelectTrigger id="topology-edge-kind" className="w-full">
                 <SelectValue />
@@ -93,30 +93,30 @@ export function CreateEdgeDialog({
             </Select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="topology-edge-label">联系说明</Label>
+            <Label htmlFor="topology-edge-label">Connection label</Label>
             <Input
               id="topology-edge-label"
               value={label}
               maxLength={200}
-              placeholder="留空则按类型显示默认名称"
+              placeholder="Leave empty to use the default name for the type"
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleSubmit();
               }}
             />
-            <p className="text-muted-foreground text-xs">证据引用由 Agent 写入；手工添加的联系先按所选类型展示。</p>
+            <p className="text-muted-foreground text-xs">Evidence references are written by Agents; manually added connections are shown with the selected type first.</p>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>颜色（可选）</Label>
+            <Label>Color (optional)</Label>
             <ColorPicker value={color} onChange={setColor} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            取消
+            Cancel
           </Button>
           <Button disabled={pair === null} onClick={() => void handleSubmit()}>
-            添加
+            Add
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,6 @@
 /**
- * combobox.tsx：shadcn/ui 基于 @base-ui/react 的 Combobox 组合框组件封装（支持多选 Chips）。
- * 主要组件：Combobox、ComboboxInput、ComboboxTrigger、ComboboxContent、ComboboxList、
+ * combobox.tsx: shadcn/ui Combobox component wrapper built on @base-ui/react (supports multi-select chips).
+ * Main components: Combobox, ComboboxInput, ComboboxTrigger, ComboboxContent, ComboboxList,
  *   ComboboxItem、ComboboxGroup、ComboboxLabel、ComboboxCollection、ComboboxEmpty、
  *   ComboboxSeparator、ComboboxChips、ComboboxChip、ComboboxChipsInput、ComboboxValue、
  *   useComboboxAnchor。

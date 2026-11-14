@@ -1,9 +1,9 @@
 /**
- * prompt-template-manager.tsx：提示词模板库管理面板（列表/新建/编辑/删除/设默认/试渲染），dedup 合并后通过 adapter 同时服务 planner 与 worker 两域。
- * 主要函数/类型：
- *   - PromptTemplateManager：通用模板管理面板（adapter 注入 CRUD 端点、变量目录与文案）
- *   - PlannerTemplateManager / WorkerTemplateManager：planner / worker 域入口，绑定各自 adapter
- *   - PromptTemplateManagerAdapter：域差异注入接口
+ * prompt-template-manager.tsx: prompt template library management panel (list/create/edit/delete/set-default/test-render); deduplicated via an adapter serving planner and worker domains.
+ * Main functions/types:
+ *   - PromptTemplateManager: generic template management panel (adapter injects CRUD endpoints, variable catalog, and copy)
+ *   - PlannerTemplateManager / WorkerTemplateManager: planner / worker domain entries, each bound to its adapter
+ *   - PromptTemplateManagerAdapter: domain-difference injection interface
  */
 "use client";
 
@@ -35,24 +35,24 @@ import { api } from "@/lib/api";
 import type { PlannerTemplate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// PromptTemplate 即模板库条目类型；planner 与 worker 模板同构（lib/types.ts 中
-// WorkerTemplate 是 PlannerTemplate 的别名）。
+// PromptTemplate is the template library entry type; planner and worker templates share the shape (in lib/types.ts
+// WorkerTemplate is an alias of PlannerTemplate).
 type PromptTemplate = PlannerTemplate;
 
-// PromptTemplateManagerAdapter 注入 planner/worker 模板域的全部差异：CRUD 端点封装、
-// 变量目录与文案（标题/描述/字段提示/快照字段名）。两域管理面板逻辑此前逐行相同。
+// PromptTemplateManagerAdapter injects all differences between the planner/worker template domains: CRUD endpoint wrappers,
+// variable catalog, and copy (title/description/field hints/snapshot field name). The two management panels were previously identical line for line.
 interface PromptTemplateManagerAdapter {
-  // 合法变量目录（与后端 S11 试渲染同目录）。
+  // Valid variable catalog (same as the backend S11 test-render catalog).
   vars: readonly string[];
   title: string;
   description: string;
-  // 表单元素 id/htmlFor 前缀（planner-template / worker-template）。
+  // Form element id/htmlFor prefix (planner-template / worker-template).
   idPrefix: string;
   bodyLabel: string;
-  // 内置模板名称只读时的补充说明。
+  // Additional note shown when built-in template names are read-only.
   builtinNameHint: string;
   builtinDeleteHint: string;
-  // 创建任务时模板正文快照进任务的字段名（删除确认文案引用）。
+  // Name of the field the template body is snapshotted into on task creation (referenced by the delete confirmation copy).
   snapshotField: string;
   api: {
     list: () => Promise<PromptTemplate[]>;
@@ -82,33 +82,33 @@ function templateDraft(template: PromptTemplate): PromptTemplateDraft {
   return { name: template.name, body: template.body, isDefault: template.is_default };
 }
 
-// 列表排序：内置默认置顶，其后默认模板，其余保持后端 updated_at DESC 顺序（sort 稳定性保证）。
+// List ordering: built-in default first, then default templates, then backend updated_at DESC (guaranteed by sort stability).
 function sortTemplates(list: PromptTemplate[]): PromptTemplate[] {
   return [...list].sort((a, b) => Number(b.builtin) - Number(a.builtin) || Number(b.is_default) - Number(a.is_default));
 }
 
 export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTemplateManagerProps) {
   const [templates, setTemplates] = React.useState<PromptTemplate[]>([]);
-  const [selectedID, setSelectedID] = React.useState<number | null>(null); // null=新建草稿
+  const [selectedID, setSelectedID] = React.useState<number | null>(null); // null = new draft
   const [draft, setDraft] = React.useState<PromptTemplateDraft>(emptyDraft);
   const [saving, setSaving] = React.useState(false);
   const [validating, setValidating] = React.useState(false);
-  const [validateErr, setValidateErr] = React.useState(""); // 试渲染 400 错误详情（含模板行号）红字回显
+  const [validateErr, setValidateErr] = React.useState(""); // test-render 400 error details (with template line numbers) shown in red
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const bodyRef = React.useRef<HTMLTextAreaElement>(null);
   const wasOpen = React.useRef(false);
 
-  // 保存/删除后刷新列表（不动当前选中与草稿）。
+  // Refresh the list after save/delete (current selection and draft are untouched).
   const reload = React.useCallback(async () => {
     try {
       setTemplates(sortTemplates(await adapter.api.list()));
     } catch (error) {
-      toast.error(`刷新模板列表失败：${(error as Error).message}`);
+      toast.error(`Failed to refresh the template list: ${(error as Error).message}`);
     }
   }, [adapter]);
 
-  // 每次打开面板：拉取列表并默认选中「默认模板」（无默认则列表首个，通常即内置默认）。
+  // On open: fetch the list and select the "default template" (or the first entry, usually the built-in default, when none is set).
   React.useEffect(() => {
     if (!open) {
       wasOpen.current = false;
@@ -133,14 +133,14 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
       })
       .catch((error) => {
         setTemplates([]);
-        toast.error(`加载模板失败：${(error as Error).message}`);
+        toast.error(`Failed to load templates: ${(error as Error).message}`);
       });
   }, [open, adapter]);
 
   const selected = React.useMemo(() => templates.find((t) => t.id === selectedID) ?? null, [selectedID, templates]);
-  // 内置正文可编辑；名称/nkey 保留 seed 与场景引用身份，删除保护不变。
+  // Built-in bodies are editable; names/nkeys keep their seed and scenario-reference identity, and delete protection is unchanged.
   const nameReadOnly = !!selected?.builtin;
-  // 内置禁删（D11-c）、默认禁删（后端 default-protected sentinel）——前端先拦，后端 409 兜底。
+  // Built-ins cannot be deleted (D11-c), defaults cannot be deleted (backend default-protected sentinel) — blocked in the frontend first, with the backend 409 as backstop.
   const deleteDisabled = !selected || selected.builtin || selected.is_default;
 
   const selectTemplate = (template: PromptTemplate) => {
@@ -152,11 +152,11 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
   const startNew = () => {
     const builtin = templates.find((t) => t.builtin);
     setSelectedID(null);
-    setDraft({ name: "", body: builtin?.body ?? "", isDefault: false }); // 以内置默认正文为底稿
+    setDraft({ name: "", body: builtin?.body ?? "", isDefault: false }); // use the built-in default body as the draft base
     setValidateErr("");
   };
 
-  // 变量 chip：插入到正文光标处；内置正文同样允许编辑。
+  // Variable chip: inserts at the body cursor; built-in bodies are editable too.
   const insertVar = (v: string) => {
     const ta = bodyRef.current;
     if (!ta) return;
@@ -169,13 +169,13 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
     });
   };
 
-  // 试渲染校验：调 S11-v 干跑端点（不落库）；成功 toast，失败错误详情（含模板行号）红字回显。
+  // Test-render validation: calls the S11-v dry-run endpoint (no persistence); success toast, failure details (with template line numbers) in red.
   async function validate() {
     setValidating(true);
     setValidateErr("");
     try {
       await adapter.api.validate(draft.body);
-      toast.success("试渲染通过：语法正确、变量均在目录内");
+      toast.success("Test render passed: syntax is valid and all variables are in the catalog");
     } catch (error) {
       setValidateErr((error as Error).message);
     } finally {
@@ -186,7 +186,7 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
   async function save() {
     const input = { name: draft.name.trim(), body: draft.body.trim() };
     if (!input.name || !input.body) {
-      toast.error("请填写模板名称与提示词正文");
+      toast.error("Please fill in the template name and prompt body");
       return;
     }
     setSaving(true);
@@ -196,18 +196,18 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
         const created = await adapter.api.create(input);
         savedID = created.id;
         if (draft.isDefault) await adapter.api.setDefault(created.id);
-        toast.success(`模板「${created.name}」已创建`);
+        toast.success(`Template \"${created.name}\" created`);
       } else {
         const updated = await adapter.api.update(selectedID, input);
         if (draft.isDefault && !updated.is_default) await adapter.api.setDefault(updated.id);
-        toast.success(`模板「${updated.name}」已保存`);
+        toast.success(`Template \"${updated.name}\" saved`);
       }
       await reload();
       setSelectedID(savedID);
       setValidateErr("");
     } catch (error) {
-      // S11 保存时同样试渲染：400 错误文本自带模板行号（template: p:<行>:<列> …）
-      toast.error(`保存失败：${(error as Error).message}`);
+      // S11 also test-renders on save: 400 error text carries the template line number (template: p:<line>:<col> …)
+      toast.error(`Save failed: ${(error as Error).message}`);
     } finally {
       setSaving(false);
     }
@@ -230,20 +230,20 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
         setDraft({ name: "", body: "", isDefault: false });
       }
       setDeleteOpen(false);
-      toast.success("模板已删除");
+      toast.success("Template deleted");
     } catch (error) {
-      toast.error(`删除失败：${(error as Error).message}`);
+      toast.error(`Delete failed: ${(error as Error).message}`);
     } finally {
       setDeleting(false);
     }
   }
 
-  let saveLabel = saving ? "保存中" : "保存修改";
-  if (!saving && selectedID == null) saveLabel = "创建模板";
+  let saveLabel = saving ? "Saving" : "Save changes";
+  if (!saving && selectedID == null) saveLabel = "Create template";
 
   let deleteHint = "";
   if (selected?.builtin) deleteHint = adapter.builtinDeleteHint;
-  else if (selected?.is_default) deleteHint = "默认模板不能删除，请先在另一模板上设默认";
+  else if (selected?.is_default) deleteHint = "The default template cannot be deleted — set another template as default first";
 
   return (
     <>
@@ -257,12 +257,12 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
             <div className="flex min-h-0 flex-col border-b p-3 lg:border-r lg:border-b-0">
               <Button type="button" variant="outline" className="w-full" onClick={startNew}>
                 <PlusIcon data-icon="inline-start" />
-                新建模板
+                New template
               </Button>
               <ScrollArea className="mt-2 max-h-44 lg:max-h-none lg:flex-1">
                 <div className="flex flex-col gap-1 pr-2">
                   {templates.length === 0 && (
-                    <p className="text-muted-foreground px-2 py-6 text-center text-sm">暂无模板</p>
+                    <p className="text-muted-foreground px-2 py-6 text-center text-sm">No templates</p>
                   )}
                   {templates.map((template) => (
                     <button
@@ -279,7 +279,7 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                         <span className="truncate text-sm font-medium">{template.name}</span>
                         {template.builtin && (
                           <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
-                            内置
+                            Built-in
                           </Badge>
                         )}
                         {template.is_default && (
@@ -287,7 +287,7 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                             variant="secondary"
                             className="shrink-0 bg-green-100 px-1.5 py-0 text-[10px] text-green-800"
                           >
-                            默认
+                            Default
                           </Badge>
                         )}
                       </span>
@@ -302,17 +302,17 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
             <ScrollArea className="min-h-0">
               <FieldGroup className="p-6">
                 <Field>
-                  <FieldLabel htmlFor={`${adapter.idPrefix}-name`}>模板名称</FieldLabel>
+                  <FieldLabel htmlFor={`${adapter.idPrefix}-name`}>Template name</FieldLabel>
                   <Input
                     id={`${adapter.idPrefix}-name`}
                     value={draft.name}
                     maxLength={120}
-                    placeholder="例如：内网横向·谨慎"
+                    placeholder="e.g. Internal lateral movement · cautious"
                     disabled={nameReadOnly}
                     onChange={(event) => setDraft((cur) => ({ ...cur, name: event.target.value }))}
                   />
                   <FieldDescription>
-                    名称归一化后唯一（防视觉等价重名）。
+                    Names must be unique after normalization (prevents visually equivalent duplicates).
                     {nameReadOnly && adapter.builtinNameHint}
                   </FieldDescription>
                 </Field>
@@ -327,11 +327,11 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                   />
                   {validateErr && <p className="text-destructive text-xs whitespace-pre-wrap">{validateErr}</p>}
                   <FieldDescription>
-                    代码占有的尾部规约（流量工具/中间产物输出规约）在渲染后追加，不在此列、不可覆盖。
+                    The code-owned tail rules (traffic tools / intermediate-output rules) are appended after rendering — not listed here and not overridable.
                   </FieldDescription>
                 </Field>
                 <Field>
-                  <FieldLabel>变量目录（点击插入到正文光标处）</FieldLabel>
+                  <FieldLabel>Variable catalog (click to insert at the body cursor)</FieldLabel>
                   <div className="flex flex-wrap gap-1.5">
                     {adapter.vars.map((v) => (
                       <button
@@ -345,7 +345,7 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                     ))}
                   </div>
                   <FieldDescription>
-                    仅这五个变量可用；引用目录外变量保存/试渲染会被拒（400 带模板行号）。
+                    Only these five variables are available; referencing anything outside the catalog is rejected on save/test-render (400 with template line numbers).
                   </FieldDescription>
                 </Field>
                 <Field>
@@ -353,14 +353,14 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                     <Switch
                       id={`${adapter.idPrefix}-default`}
                       checked={draft.isDefault}
-                      disabled={selected?.is_default} // 默认模板不能在此取消默认——在另一模板上设默认即自动让位
+                      disabled={selected?.is_default} // the default cannot be unset here — setting another template as default takes over automatically
                       onCheckedChange={(v) => setDraft((cur) => ({ ...cur, isDefault: !!v }))}
                     />
                     <FieldLabel htmlFor={`${adapter.idPrefix}-default`} className="font-normal">
-                      设为默认模板
+                      Set as default template
                     </FieldLabel>
                   </div>
-                  <FieldDescription>「默认」全库唯一；建任务未选择模板时，用默认模板正文快照打底。</FieldDescription>
+                  <FieldDescription>Only one default per library; tasks created without a template choice start from the default template's body snapshot.</FieldDescription>
                 </Field>
                 <Field>
                   <Button
@@ -372,10 +372,10 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                     onClick={() => void validate()}
                   >
                     {validating ? <Spinner data-icon="inline-start" /> : <PlayIcon data-icon="inline-start" />}
-                    {validating ? "校验中" : "试渲染校验"}
+                    {validating ? "Validating" : "Test-render validation"}
                   </Button>
                   <FieldDescription>
-                    不保存、不落库，仅调试渲染端点干跑：成功弹 toast，失败在正文下方红字给出模板行号。
+                    Dry-run against the render endpoint without saving: success shows a toast; failure shows template line numbers in red below the body.
                   </FieldDescription>
                 </Field>
               </FieldGroup>
@@ -392,11 +392,11 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
                 onClick={() => setDeleteOpen(true)}
               >
                 <Trash2Icon data-icon="inline-start" />
-                删除模板
+                Delete template
               </Button>
             )}
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              关闭
+              Close
             </Button>
             <Button type="button" disabled={saving} onClick={() => void save()}>
               {saving ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
@@ -408,13 +408,13 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除模板「{draft.name || "未命名模板"}」？</AlertDialogTitle>
+            <AlertDialogTitle>Delete template "{draft.name || "Untitled template"}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              已选用它的任务不会受到影响——创建时模板正文已快照进任务（{adapter.snapshotField}）。此操作不可撤销。
+              Tasks using it are unaffected — the template body was snapshotted into the task at creation ({adapter.snapshotField}). This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>取消</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={deleting}
@@ -424,7 +424,7 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
               }}
             >
               {deleting && <Spinner data-icon="inline-start" />}
-              {deleting ? "删除中" : "删除"}
+              {deleting ? "Deleting" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -433,22 +433,22 @@ export function PromptTemplateManager({ open, onOpenChange, adapter }: PromptTem
   );
 }
 
-// ── planner / worker 适配器与固定出口 ──────────────────────────────────────────
-// 两域此前为两份近 400 行的孪生组件，仅下列差异不同（CRUD 端点、变量目录、文案）。
+// ── planner / worker adapters and fixed exports ──────────────────────────────────────────
+// The two domains were previously two ~400-line twin components differing only in the following (CRUD endpoints, variable catalog, copy).
 
-// 合法变量目录 = 00 册 A4 PlannerVars 五字段（agent/prompt.go#PlannerVars）；与后端 S11 试渲染同目录。
+// Valid variable catalog = the five PlannerVars fields (agent/prompt.go#PlannerVars); same catalog as the backend S11 test-render.
 const PLANNER_VARS = ["{{.Goal}}", "{{.Scope}}", "{{.AssetSummary}}", "{{.DataDir}}", "{{.Now}}"] as const;
-// 合法变量目录 = agent/prompt.go WorkerVars 四字段（agent/prompt.go#WorkerVars）；与后端 S11 试渲染同目录。
+// Valid variable catalog = the four WorkerVars fields (agent/prompt.go#WorkerVars); same catalog as the backend S11 test-render.
 const WORKER_VARS = ["{{.WorkerName}}", "{{.ProxyAddr}}", "{{.DataDir}}", "{{.Now}}"] as const;
 
 const plannerTemplateAdapter: PromptTemplateManagerAdapter = {
   vars: PLANNER_VARS,
-  title: "planner模板管理",
-  description: "模板保存 planner 提示词正文；修改不会影响已经创建的任务（快照语义）。",
+  title: "Planner template management",
+  description: "Templates store the planner prompt body; edits do not affect tasks already created (snapshot semantics).",
   idPrefix: "planner-template",
-  bodyLabel: "提示词正文（Go template，全文替换 planner 提示词段 [A]）",
-  builtinNameHint: "内置模板名称用于场景标识，不可修改；正文可直接编辑保存。",
-  builtinDeleteHint: "内置模板不可删除，正文可直接编辑",
+  bodyLabel: "Prompt body (Go template; replaces planner prompt section [A] in full)",
+  builtinNameHint: "Built-in template names identify scenarios and cannot be changed; bodies can be edited and saved directly.",
+  builtinDeleteHint: "Built-in templates cannot be deleted; bodies are editable",
   snapshotField: "planner_prompt_override",
   api: {
     list: () => api.plannerTemplates(),
@@ -462,12 +462,12 @@ const plannerTemplateAdapter: PromptTemplateManagerAdapter = {
 
 const workerTemplateAdapter: PromptTemplateManagerAdapter = {
   vars: WORKER_VARS,
-  title: "Worker 模板管理",
-  description: "模板保存 Worker 提示词正文；修改不会影响已经创建的任务（快照语义）。",
+  title: "Worker template management",
+  description: "Templates store the Worker prompt body; edits do not affect tasks already created (snapshot semantics).",
   idPrefix: "worker-template",
-  bodyLabel: "提示词正文（Go template，全文替换 Worker 提示词段 [A]）",
-  builtinNameHint: "内置模板正文可直接编辑；名称和 nkey 保留用于场景标识。",
-  builtinDeleteHint: "内置模板不可删除；正文可编辑，名称/nkey 保留",
+  bodyLabel: "Prompt body (Go template; replaces Worker prompt section [A] in full)",
+  builtinNameHint: "Built-in template bodies are editable directly; names and nkeys are kept for scenario identification.",
+  builtinDeleteHint: "Built-in templates cannot be deleted; bodies are editable, names/nkeys are kept",
   snapshotField: "worker_prompt_override",
   api: {
     list: () => api.workerTemplates(),

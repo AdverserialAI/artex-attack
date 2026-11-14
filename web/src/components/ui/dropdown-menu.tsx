@@ -1,6 +1,6 @@
 /**
- * dropdown-menu.tsx：shadcn/ui 的 DropdownMenu 下拉菜单组件封装。
- * 主要组件：DropdownMenu、DropdownMenuTrigger、DropdownMenuContent、DropdownMenuGroup、
+ * dropdown-menu.tsx: shadcn/ui DropdownMenu component wrapper.
+ * Main components: DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup,
  *   DropdownMenuLabel、DropdownMenuItem、DropdownMenuCheckboxItem、DropdownMenuRadioGroup、
  *   DropdownMenuRadioItem、DropdownMenuSeparator、DropdownMenuShortcut、DropdownMenuSub、
  *   DropdownMenuSubTrigger、DropdownMenuSubContent、DropdownMenuPortal。

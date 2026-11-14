@@ -1,10 +1,10 @@
 /**
- * page.tsx：运行日志页——SSE 实时日志流，支持级别 / 关键字 / 任务过滤。
- * 主要函数/类型：
- *   - LogsPage：默认导出页组件，订阅 /api/logs/stream 并渲染日志列表
- *   - fmtTime：时间戳格式化为可读字符串
- *   - taskOf / taskHue / taskChipStyle：从日志提取任务 id 并生成可区分的过滤徽章
- *   - levelTone / levelDot：日志级别的文字与圆点配色
+ * page.tsx: runtime logs page — live SSE log stream with level / keyword / task filtering.
+ * Main functions/types:
+ *   - LogsPage: default-exported page component; subscribes to /api/logs/stream and renders the log list
+ *   - fmtTime: formats timestamps into readable strings
+ *   - taskOf / taskHue / taskChipStyle: extracts task ids from logs and generates distinguishable filter chips
+ *   - levelTone / levelDot: text and dot colors for log levels
  */
 "use client";
 
@@ -36,19 +36,19 @@ function fmtTime(ts: string) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-// taskOf 从引擎日志文本中提取数字任务 id。
+// taskOf extracts the numeric task id from engine log text.
 const TASK_RE = /(?:^|[\s#])task\s+(\d+)/;
 function taskOf(text: string): string | null {
   const m = TASK_RE.exec(text);
   return m ? m[1] : null;
 }
-// taskHue 为任务 id 生成稳定的徽章色相。
+// taskHue generates a stable chip hue for a task id.
 function taskHue(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
   return h;
 }
-// taskChipStyle 根据任务 id 生成可区分的徽章颜色。
+// taskChipStyle generates a distinguishable chip color for a task id.
 function taskChipStyle(id: string): React.CSSProperties {
   const hue = taskHue(id);
   return {
@@ -84,8 +84,8 @@ export default function LogsPage() {
   // Live tail via SSE. on connect, replays whatever is in the ring (includes
   // DB-restored history from the last 100 rows written before restart).
   React.useEffect(() => {
-    // 必须直接判断环境变量，让 webpack DefinePlugin 能折掉动态 import；
-    // Turbopack 另由 next.config.mjs 的 resolveAlias 替换为空桩。
+    // The env var must be checked directly so webpack DefinePlugin can fold away the dynamic import;
+    // Turbopack instead replaces it with an empty stub via next.config.mjs resolveAlias.
     if (process.env.NEXT_PUBLIC_MOCK === "1") {
       void import("@/lib/mock/logs").then(({ MOCK_LOGS }) => setLines(MOCK_LOGS));
       return;
@@ -139,7 +139,7 @@ export default function LogsPage() {
       }
       setHasMore(data.has_more ?? false);
     } catch (error) {
-      setHistoryError("加载更早日志失败：" + (error as Error).message);
+      setHistoryError("Failed to load earlier logs: " + (error as Error).message);
     } finally {
       setLoadingHistory(false);
     }
@@ -155,7 +155,7 @@ export default function LogsPage() {
     );
   }, [lines, q, level, taskFilter]);
 
-  // 从当前日志提取最近出现的任务 id，最多显示 12 个过滤项。
+  // Extract the most recently seen task ids from current logs, showing at most 12 filter items.
   const seenTasks = React.useMemo(() => {
     const seen = new Map<string, number>();
     lines.forEach((l, idx) => {
@@ -182,13 +182,13 @@ export default function LogsPage() {
   return (
     <div className="flex flex-1 flex-col gap-3">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">系统日志</h1>
-        <p className="text-muted-foreground text-sm">后端实时日志流(planner / worker / 数据库 / 流量 …)</p>
+        <h1 className="text-xl font-semibold tracking-tight">System Logs</h1>
+        <p className="text-muted-foreground text-sm">Live backend log stream (planner / worker / database / traffic …)</p>
       </div>
       <div className="flex flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Input
-            placeholder="过滤(文本 / tag)…"
+            placeholder="Filter (text / tag)…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="h-8 max-w-xs"
@@ -202,7 +202,7 @@ export default function LogsPage() {
                 className="h-8"
                 onClick={() => setLevel(lv)}
               >
-                {lv === "all" ? "全部" : lv}
+                {lv === "all" ? "All" : lv}
               </Button>
             ))}
           </div>
@@ -212,22 +212,22 @@ export default function LogsPage() {
             className="h-8"
             onClick={() => setPaused((p) => !p)}
           >
-            {paused ? "已暂停" : "暂停"}
+            {paused ? "Paused" : "Pause"}
           </Button>
           <Button size="sm" variant="outline" className="h-8" onClick={() => setLines([])}>
-            清空
+            Clear
           </Button>
           <span className="ml-auto text-xs text-muted-foreground">
-            {counts.total} 行 ·{" "}
-            <span className="text-amber-600 dark:text-amber-400">{counts.warn} 警告</span> ·{" "}
-            <span className="text-red-600 dark:text-red-400">{counts.error} 错误</span>
+            {counts.total} lines ·{" "}
+            <span className="text-amber-600 dark:text-amber-400">{counts.warn} warnings</span> ·{" "}
+            <span className="text-red-600 dark:text-red-400">{counts.error} errors</span>
           </span>
         </div>
 
-        {/* 任务过滤：按任务着色，再次点击可取消。 */}
+        {/* Task filters: colored by task; click again to deselect. */}
         {seenTasks.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">任务:</span>
+            <span className="text-xs text-muted-foreground">Tasks:</span>
             {seenTasks.map((t) => (
               <button
                 key={t}
@@ -248,7 +248,7 @@ export default function LogsPage() {
                 onClick={() => setTaskFilter(null)}
                 className="rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
               >
-                清除过滤
+                Clear filters
               </button>
             )}
           </div>
@@ -270,13 +270,13 @@ export default function LogsPage() {
                 disabled={loadingHistory}
                 onClick={loadOlderHistory}
               >
-                {loadingHistory ? "加载中…" : "加载更早日志"}
+                {loadingHistory ? "Loading…" : "Load earlier logs"}
               </Button>
             </div>
           )}
           {historyError && <p className="py-1 text-center text-red-600 dark:text-red-400">{historyError}</p>}
           {filtered.length === 0 ? (
-            <p className="py-10 text-center text-muted-foreground">暂无日志。</p>
+            <p className="py-10 text-center text-muted-foreground">No logs yet.</p>
           ) : (
             filtered.map((l) => {
               const body =

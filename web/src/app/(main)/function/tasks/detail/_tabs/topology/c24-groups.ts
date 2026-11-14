@@ -1,12 +1,12 @@
 /**
- * c24-groups.ts：按 /24 网段对内网拓扑节点自动归组。
- * 主要函数：
- *   - c24Name：IPv4 → "a.b.c.0/24"；非 IPv4 返回 null
- *   - planC24Groups：未分组节点按 /24 聚类，成员 ≥2 的子网按名称排序返回
- *   - isC24Grouped / markC24Grouped：安全读写一次性归组标记
- *   - applyC24Grouping：建/复用同名分组并把成员移入，返回后端最新整图
- * 组创建几何复用 nextGroupPlacement（右侧落位）+ 默认框尺寸，成员坐标随后由
- * autoLayout 写入；归组全部在前端完成，不动后端 fact 建边逻辑。
+ * c24-groups.ts: automatically group internal-topology nodes by /24 subnet.
+ * Main functions:
+ *   - c24Name: IPv4 → "a.b.c.0/24"; returns null for non-IPv4
+ *   - planC24Groups: clusters ungrouped nodes by /24; returns subnets with ≥2 members sorted by name
+ *   - isC24Grouped / markC24Grouped: safely read/write the one-time grouping marker
+ *   - applyC24Grouping: creates/reuses same-named groups and moves members in; returns the latest full graph from the backend
+ * Group creation geometry reuses nextGroupPlacement (placement to the right) + default frame size; member coordinates are then
+ * written by autoLayout; grouping is done entirely on the frontend and does not touch backend fact edge-building logic.
  */
 import { api } from "@/lib/api";
 import { getLocalStorageValue, setLocalStorageValue } from "@/lib/local-storage.client";

@@ -1,6 +1,6 @@
 /**
- * switch.tsx：shadcn/ui 的 Switch 开关组件封装。
- * 主要组件：Switch。
+ * switch.tsx: shadcn/ui Switch component wrapper.
+ * Main components: Switch.
  */
 "use client"
 

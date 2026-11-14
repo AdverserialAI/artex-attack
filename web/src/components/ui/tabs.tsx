@@ -1,6 +1,6 @@
 /**
- * tabs.tsx：shadcn/ui 的 Tabs 标签页组件封装（含 tabsListVariants 变体样式）。
- * 主要组件：Tabs、TabsList、TabsTrigger、TabsContent、tabsListVariants。
+ * tabs.tsx: shadcn/ui Tabs component wrapper (with tabsListVariants variant styles).
+ * Main components: Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants.
  */
 "use client"
 

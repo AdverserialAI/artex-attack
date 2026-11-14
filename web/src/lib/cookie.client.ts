@@ -1,8 +1,8 @@
 // Client-side cookie utilities.
 // These functions manage cookies in the browser only.
 // Server actions handle cookie updates on the server side.
-// 主要函数/类型：
-//   - setClientCookie / getClientCookie：浏览器端写入与读取 cookie
+// Main functions/types:
+//   - setClientCookie / getClientCookie: browser-side cookie write and read
 
 function writeClientCookie(serializedCookie: string) {
   // biome-ignore lint/suspicious/noDocumentCookie: This project still uses document.cookie for broad browser support.

@@ -1,9 +1,9 @@
 /**
- * approval-execution-focus.tsx：从 URL 定位 persisted 审批调用并在转录中回填历史，渲染聚焦横幅。
- * 主要函数/类型：
- *   - useApprovalFocus：解析 ?approval= 参数并加载对应的拦截执行记录
- *   - useApprovalHistory：向前翻页填充转录直至找到该次工具调用
- *   - ApprovalExecutionFocus：聚焦提示横幅组件
+ * approval-execution-focus.tsx: locates a persisted approval call from the URL, backfills history in the transcript, and renders the focus banner.
+ * Main functions/types:
+ *   - useApprovalFocus: parses the ?approval= parameter and loads the corresponding intercept execution record
+ *   - useApprovalHistory: pages backward to fill the transcript until the tool call is found
+ *   - ApprovalExecutionFocus: focus banner component
  */
 "use client";
 
@@ -41,12 +41,12 @@ export function useApprovalFocus({ taskId, conversationId }: { taskId?: string; 
             ? source.conversation_id !== conversationId
             : source.task_id !== taskId || source.conversation_id != null
         ) {
-          throw new Error("审批来源与当前会话不一致");
+          throw new Error("Approval origin does not match the current session");
         }
         setState({ id, source, loading: false });
       })
       .catch((e) => {
-        if (!cancelled) setState({ id, error: (e as Error).message || "无法定位原始执行", loading: false });
+        if (!cancelled) setState({ id, error: (e as Error).message || "Unable to locate the original execution", loading: false });
       });
     return () => {
       cancelled = true;
@@ -85,13 +85,13 @@ export function useApprovalHistory(
         const page = await loadPage(before);
         if (cancelled) return;
         if (!page.items.length || (before > 0 && page.items[0].seq >= before)) {
-          throw new Error("会话中未找到对应工具调用，记录可能已删除");
+          throw new Error("No matching tool call found in the session; the record may have been deleted");
         }
         mergePage(page);
         current = page.items;
         before = current[0].seq;
         if (!page.hasMore && !current.some((a) => a.seq === source.seq)) {
-          throw new Error("会话中未找到对应工具调用");
+          throw new Error("No matching tool call found in the session");
         }
       }
       if (!cancelled) setResult({ source });
@@ -125,19 +125,19 @@ export function ApprovalExecutionFocus({
     >
       <span className={error ? "text-destructive" : "text-muted-foreground"}>
         {error
-          ? `无法定位：${error}`
+          ? `Unable to locate: ${error}`
           : history.ready
-            ? `已展开审批 #${state.id} 对应的工具调用`
-            : `正在加载审批 #${state.id} 所在的对话位置…`}
+            ? `Expanded the tool call for approval #${state.id}`
+            : `Loading the conversation position of approval #${state.id}…`}
       </span>
       <div className="flex gap-2">
         {error ? (
           <Button size="sm" variant="outline" onClick={focus.retry}>
-            重试定位
+            Retry locating
           </Button>
         ) : null}
         <Button size="sm" variant="ghost" onClick={focus.close}>
-          取消定位
+          Clear focus
         </Button>
       </div>
     </div>

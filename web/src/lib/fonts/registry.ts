@@ -1,9 +1,9 @@
 /**
- * 主要函数/类型：
- *   - fontRegistry / FontKey：可用字体注册表（key → next/font 实例）
- *   - fontKeys：全部合法字体 key（供持久化值校验使用）
- *   - fontVars：全部字体的 CSS 变量名列表
- *   - fontOptions：字体下拉选项（label + variable）
+ * Main functions/types:
+ *   - fontRegistry / FontKey: registry of available fonts (key → next/font instance)
+ *   - fontKeys: all valid font keys (for validating persisted values)
+ *   - fontVars: list of CSS variable names for all fonts
+ *   - fontOptions: font dropdown options (label + variable)
  */
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelSquare } from "geist/font/pixel";

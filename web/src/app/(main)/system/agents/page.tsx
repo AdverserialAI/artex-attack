@@ -1,9 +1,9 @@
 /**
- * page.tsx：Agent 管理页——卡片网格、新建对话框与编辑抽屉。
- * 主要函数/类型：
- *   - AgentsPage：默认导出页组件，加载 agent 列表并管理编辑 Sheet / 模板库面板
- *   - AgentGridCard：可点击的 agent 瓦片（含删除按钮与模板库入口）
- *   - CreateAgentDialog：新建 agent 的对话框
+ * page.tsx: Agent management page — card grid, create dialog, and edit drawer.
+ * Main functions/types:
+ *   - AgentsPage: default-exported page component; loads the agent list and manages the edit Sheet / template library panel
+ *   - AgentGridCard: clickable agent tile (with delete button and template library entry)
+ *   - CreateAgentDialog: dialog for creating an agent
  */
 "use client";
 
@@ -13,7 +13,7 @@ import { Bot, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 
 import { AgentEditor } from "@/components/agent-editor";
-// 【二开·P-TPL·U8】起
+// [fork P-TPL U8] begin
 import { PlannerTemplateManager, WorkerTemplateManager } from "@/components/prompt-template-manager";
 import {
   AlertDialog,
@@ -45,11 +45,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { Agent } from "@/lib/types";
 
-// 【二开·P-TPL·U8】止
+// [fork P-TPL U8] end
 
-// 【二开·P-TPL·U8 AgentGridCard planner 瓦片入口 chip】
-// 功能介绍：AgentGridCard 加 onOpenPlannerTemplates 可选属性——仅 planner 瓦片传入，
-//           在统计行渲染「提示词：模板库 →」chip，点击打开 planner模板管理 Sheet（U8-c）
+// [fork P-TPL U8 AgentGridCard planner tile entry chip]
+// Feature: AgentGridCard takes an optional onOpenPlannerTemplates prop — passed only by the planner tile,
+//           rendering a "Prompts: template library →" chip in the stats row that opens the planner template management Sheet (U8-c)
 
 // AgentGridCard is one clickable tile opening the agent's editor drawer. Custom
 // (non-builtin) agents get a delete button.
@@ -57,22 +57,22 @@ function AgentGridCard({
   agent,
   onOpen,
   onDeleted,
-  onOpenPlannerTemplates, // 【二开·P-TPL·U8】仅 planner 瓦片传入：打开 planner模板管理面板
+  onOpenPlannerTemplates, // [fork P-TPL U8] planner tile only: opens the planner template management panel
   onOpenWorkerTemplates,
 }: {
   agent: Agent;
   onOpen: () => void;
   onDeleted: () => void;
-  onOpenPlannerTemplates?: () => void; // 【二开·P-TPL·U8】
+  onOpenPlannerTemplates?: () => void; // [fork P-TPL U8]
   onOpenWorkerTemplates?: () => void;
 }) {
   async function del() {
     try {
       await api.deleteAgent(agent.key);
-      toast.success(`已删除 Agent「${agent.name}」`);
+      toast.success(`Agent \"${agent.name}\" deleted`);
       onDeleted();
     } catch (e) {
-      toast.error("删除失败：" + (e as Error).message);
+      toast.error("Delete failed: " + (e as Error).message);
     }
   }
   return (
@@ -84,50 +84,50 @@ function AgentGridCard({
           <span className="text-muted-foreground font-mono text-xs">{agent.key}</span>
           {agent.builtin ? (
             <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-              内置
+              Built-in
             </Badge>
           ) : (
             <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-              自定义
+              Custom
             </Badge>
           )}
           {!agent.enabled && (
             <Badge variant="outline" className="text-destructive px-1.5 py-0 text-[10px]">
-              已停用
+              Disabled
             </Badge>
           )}
         </div>
-        <p className="text-muted-foreground line-clamp-2 min-h-8 text-xs">{agent.description || "（无描述）"}</p>
+        <p className="text-muted-foreground line-clamp-2 min-h-8 text-xs">{agent.description || "(no description)"}</p>
         <div className="text-muted-foreground flex flex-wrap gap-1.5 text-[10px]">
           <span className="rounded border px-1.5 py-0.5">MCP {agent.mcp_count ?? 0}</span>
           <span className="rounded border px-1.5 py-0.5">Skill {agent.skill_count ?? 0}</span>
-          <span className="rounded border px-1.5 py-0.5">工具 {agent.tool_count ?? 0}</span>
-          {/* 【二开·P-TPL·U8】起 —— 「提示词：模板库 →」chip：打开 planner模板管理 Sheet（span 而非 <a>/<button>：button 内不能嵌交互元素） */}
+          <span className="rounded border px-1.5 py-0.5">Tools: {agent.tool_count ?? 0}</span>
+          {/* [fork P-TPL U8] begin — "Prompts: template library →" chip opens the planner template Sheet (span, not <a>/<button>: no interactive elements nested in a button) */}
           {onOpenPlannerTemplates && (
             <span
               className="hover:border-foreground cursor-pointer rounded border px-1.5 py-0.5"
-              title="planner 提示词由模板库管理；新建任务时选择模板，未选则用默认模板打底"
+              title="Planner prompts are managed by the template library; pick a template when creating a task, otherwise the default template is used"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenPlannerTemplates();
               }}
             >
-              提示词：模板库 →
+              Prompts: template library →
             </span>
           )}
           {onOpenWorkerTemplates && (
             <span
               className="hover:border-foreground cursor-pointer rounded border px-1.5 py-0.5"
-              title="worker 提示词由模板库管理；新建任务时选择模板，未选则用默认模板打底"
+              title="Worker prompts are managed by the template library; pick a template when creating a task, otherwise the default template is used"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenWorkerTemplates();
               }}
             >
-              提示词：模板库 →
+              Prompts: template library →
             </span>
           )}
-          {/* 【二开·P-TPL·U8】止 */}
+          {/* [fork P-TPL U8] end */}
         </div>
       </button>
       {!agent.builtin && (
@@ -143,14 +143,14 @@ function AgentGridCard({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>删除 Agent「{agent.name}」？</AlertDialogTitle>
+              <AlertDialogTitle>Delete Agent "{agent.name}"?</AlertDialogTitle>
               <AlertDialogDescription>
-                将一并删除它的提示词、变量、可见性与工具绑定。此操作不可撤销。
+                Its prompts, variables, visibility, and tool bindings are deleted too. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>取消</AlertDialogCancel>
-              <AlertDialogAction onClick={del}>删除</AlertDialogAction>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={del}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -170,14 +170,14 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
     setBusy(true);
     try {
       const a = await api.createAgent(key.trim(), name.trim(), description.trim());
-      toast.success(`已创建 Agent「${a.name}」`);
+      toast.success(`Agent \"${a.name}\" created`);
       setOpen(false);
       setKey("");
       setName("");
       setDescription("");
       onCreated(a.key);
     } catch (e) {
-      toast.error("创建失败：" + (e as Error).message);
+      toast.error("Create failed: " + (e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -190,14 +190,14 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <PlusIcon /> 新建 Agent
+          <PlusIcon /> New Agent
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>新建自定义 Agent</DialogTitle>
+          <DialogTitle>New custom Agent</DialogTitle>
           <DialogDescription>
-            创建一个会话型助手。key 用于内部标识，创建后不可更改；名称与描述用于识别。
+            Create a conversational assistant. The key is an internal identifier and cannot be changed after creation; name and description are for identification.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
@@ -205,24 +205,24 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
             <Label htmlFor="agent-key">Key</Label>
             <Input
               id="agent-key"
-              placeholder="如 research_helper"
+              placeholder="e.g. research_helper"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               className="font-mono"
             />
             {key.length > 0 && !keyOk && (
-              <span className="text-destructive text-xs">小写字母开头，仅含小写字母/数字/下划线</span>
+              <span className="text-destructive text-xs">Starts with a lowercase letter; lowercase letters, digits, and underscores only</span>
             )}
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="agent-name">名称</Label>
-            <Input id="agent-name" placeholder="如 研究助手" value={name} onChange={(e) => setName(e.target.value)} />
+            <Label htmlFor="agent-name">Name</Label>
+            <Input id="agent-name" placeholder="e.g. Research assistant" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid gap-1.5">
-            <Label htmlFor="agent-desc">描述</Label>
+            <Label htmlFor="agent-desc">Description</Label>
             <Textarea
               id="agent-desc"
-              placeholder="一句话说明这个 Agent 是干什么的"
+              placeholder="One sentence about what this Agent does"
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -231,7 +231,7 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
         </div>
         <DialogFooter>
           <Button onClick={create} disabled={!canCreate}>
-            创建
+            Create
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -242,10 +242,10 @@ function CreateAgentDialog({ onCreated }: { onCreated: (key: string) => void }) 
 export default function AgentsPage() {
   const [agents, setAgents] = React.useState<Agent[]>([]);
   const [editKey, setEditKey] = React.useState<string | null>(null);
-  // 【二开·P-TPL·U8】起 —— planner模板管理面板开合状态（模板数据由 PlannerTemplateManager 自管，本页不拉列表）
+  // [fork P-TPL U8] begin —— planner template panel open state (template data is managed by PlannerTemplateManager itself; this page does not fetch the list)
   const [plannerTplMgrOpen, setPlannerTplMgrOpen] = React.useState(false);
   const [workerTplMgrOpen, setWorkerTplMgrOpen] = React.useState(false);
-  // 【二开·P-TPL·U8】止
+  // [fork P-TPL U8] end
 
   const reload = React.useCallback(() => {
     api
@@ -264,7 +264,7 @@ export default function AgentsPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Agent</h1>
-          <p className="text-muted-foreground text-sm">内置 Agent 的提示词/配置，以及自定义会话 Agent 的创建与管理</p>
+          <p className="text-muted-foreground text-sm">Prompts/configuration of built-in Agents, plus creation and management of custom conversational Agents</p>
         </div>
         <CreateAgentDialog
           onCreated={(key) => {
@@ -276,12 +276,12 @@ export default function AgentsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Agent 清单</CardTitle>
-          <CardDescription>共 {agents.length} 个</CardDescription>
+          <CardTitle>Agent inventory</CardTitle>
+          <CardDescription>{agents.length} total</CardDescription>
         </CardHeader>
         <CardContent>
           {agents.length === 0 ? (
-            <p className="text-muted-foreground py-6 text-center text-sm">（暂无 Agent）</p>
+            <p className="text-muted-foreground py-6 text-center text-sm">(no Agents)</p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {agents.map((a) => (
@@ -290,10 +290,10 @@ export default function AgentsPage() {
                   agent={a}
                   onOpen={() => setEditKey(a.key)}
                   onDeleted={reload}
-                  // 【二开·P-TPL·U8】起
+                  // [fork P-TPL U8] begin
                   onOpenPlannerTemplates={a.key === "planner" ? () => setPlannerTplMgrOpen(true) : undefined}
                   onOpenWorkerTemplates={a.key === "worker" ? () => setWorkerTplMgrOpen(true) : undefined}
-                  // 【二开·P-TPL·U8】止
+                  // [fork P-TPL U8] end
                 />
               ))}
             </div>
@@ -301,10 +301,10 @@ export default function AgentsPage() {
         </CardContent>
       </Card>
 
-      {/* 【二开·P-TPL·U8】起 —— planner模板管理 Sheet：planner 瓦片「提示词：模板库 →」chip 打开 */}
+      {/* [fork P-TPL U8] begin —— planner template management Sheet opened via the planner tile's "Prompts: template library →" chip */}
       <PlannerTemplateManager open={plannerTplMgrOpen} onOpenChange={setPlannerTplMgrOpen} />
       <WorkerTemplateManager open={workerTplMgrOpen} onOpenChange={setWorkerTplMgrOpen} />
-      {/* 【二开·P-TPL·U8】止 */}
+      {/* [fork P-TPL U8] end */}
 
       <Sheet open={!!editing} onOpenChange={(o) => !o && setEditKey(null)}>
         <SheetContent
@@ -319,11 +319,11 @@ export default function AgentsPage() {
                   <span className="text-muted-foreground font-mono text-xs">{editing.key}</span>
                   {!editing.builtin && (
                     <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                      自定义
+                      Custom
                     </Badge>
                   )}
                 </SheetTitle>
-                <SheetDescription>{editing.description || "提示词、配置、可见资源与工具绑定"}</SheetDescription>
+                <SheetDescription>{editing.description || "Prompts, configuration, visible resources, and tool bindings"}</SheetDescription>
               </SheetHeader>
               <AgentEditor agentKey={editing.key} onSaved={reload} />
             </>

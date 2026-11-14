@@ -1,8 +1,8 @@
 /**
- * stat-tile.tsx：通知页统计卡片小组件。
- * 主要函数/类型：
- *   - StatTile：标签 + 数值 + 提示的统计卡片
- *   - formatBacklog：把积压时长（毫秒）格式化为可读文案
+ * stat-tile.tsx: small stat-card component for the notifications page.
+ * Main functions/types:
+ *   - StatTile: stat card with label + value + hint
+ *   - formatBacklog: formats backlog duration (milliseconds) into readable text
  */
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -18,10 +18,10 @@ export function StatTile({ label, value, hint, tone }: { label: string; value: s
   );
 }
 
-// formatBacklog 把积压毫秒数渲染成人看得懂的量级。
+// formatBacklog renders backlog milliseconds into a human-readable magnitude.
 export function formatBacklog(ms: number): string {
   if (!ms) return "—";
-  if (ms < 60_000) return `${Math.round(ms / 1000)} 秒`;
-  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} 分钟`;
-  return `${(ms / 3_600_000).toFixed(1)} 小时`;
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)}min`;
+  return `${(ms / 3_600_000).toFixed(1)}h`;
 }

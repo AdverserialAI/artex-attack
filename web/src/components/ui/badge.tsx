@@ -1,6 +1,6 @@
 /**
- * badge.tsx：shadcn/ui 的 Badge 徽章组件封装（含 badgeVariants 变体样式）。
- * 主要组件：Badge、badgeVariants。
+ * badge.tsx: shadcn/ui Badge component wrapper (with badgeVariants variant styles).
+ * Main components: Badge, badgeVariants.
  */
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"

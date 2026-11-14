@@ -2,14 +2,16 @@
 # 本地源码一体化构建：docker compose 使用此文件。
 # 根目录 Dockerfile 仍用于 CI 预编译二进制打包，二者不要混用。
 
-FROM node:22-bookworm AS web-builder
+FROM node:22-bookworm@sha256:e13726ca604184d7a91fcacab1fc09eefd642dc28e79ac34e85540dd93b78cfb AS web-builder
+ARG NEXT_PUBLIC_DSTACK_VERIFIER_URL=""
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_DSTACK_VERIFIER_URL=${NEXT_PUBLIC_DSTACK_VERIFIER_URL}
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
 RUN npm run build:static
 
-FROM golang:1.26-bookworm AS go-builder
+FROM golang:1.26-bookworm@sha256:dc40a13b61304647ed7e5d581d246b86413dfc29d63c6d018310feb93cd98fc0 AS go-builder
 ARG ARTEX_VERSION=0.1.5
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
@@ -24,16 +26,16 @@ RUN CGO_ENABLED=0 go build -tags embedui -trimpath \
       -o /out/artex ./cmd/artex
 
 # 运行层与根目录 Dockerfile 保持一致，仅把预编译 COPY 改为 builder 产物。
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
+COPY --from=web-builder /usr/local/bin/ /usr/local/bin/
+COPY --from=web-builder /usr/local/lib/node_modules/ /usr/local/lib/node_modules/
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates ripgrep curl wget vim git jq unzip \
       dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # 预装 Playwright MCP / CLI 与 Chromium，运行时不需首次联网下载。
-RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
+RUN npm install -g @playwright/mcp@0.0.85 @playwright/cli@0.1.24 playwright@1.65.1 \
     && playwright-cli --help \
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*

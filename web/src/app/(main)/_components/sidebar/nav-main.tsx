@@ -1,10 +1,10 @@
 /**
- * nav-main.tsx：侧栏主导航，按分组渲染导航项并处理路由高亮与子菜单展开。
- * 主要函数/类型：
- *   - NavMain：按分组渲染导航列表，并根据当前路径计算高亮/展开态。
- *   - NavItem / NavLinkItem / NavDropdownItem / NavCollapsibleItem：各类导航项渲染组件。
- *   - NavLinkIcon / CollapsedIconFallback / NavItemBadge / InterceptPendingBadge：图标回退与徽标渲染。
- *   - hasSubItems：判断导航项是否为含子项的父项。
+ * nav-main.tsx: sidebar main navigation; renders nav items by group and handles route highlighting and submenu expansion.
+ * Main functions/types:
+ *   - NavMain: renders the nav list by group and computes highlight/expansion state from the current path.
+ *   - NavItem / NavLinkItem / NavDropdownItem / NavCollapsibleItem: renderer components for each nav item type.
+ *   - NavLinkIcon / CollapsedIconFallback / NavItemBadge / InterceptPendingBadge: icon fallback and badge rendering.
+ *   - hasSubItems: whether a nav item is a parent with sub-items.
  */
 "use client";
 
@@ -93,7 +93,7 @@ function hasSubItems(item: NavMainItem): item is NavMainParentItem {
 
 export function NavMain({ items }: NavMainProps) {
   const rawPath = usePathname();
-  // 路由段含中文，pathname 可能是百分号编码，解码后再与导航 url 比较，保证高亮命中。
+  // Route segments may contain non-ASCII characters, so pathname may be percent-encoded; decode before comparing with nav URLs to keep highlighting accurate.
   const path = (() => {
     try {
       return decodeURIComponent(rawPath);

@@ -1,28 +1,28 @@
 /**
- * task-assets.ts：任务资产的类型与来源中文标签映射。
- * 主要函数/类型：
- *   - taskAssetTypeLabel / taskAssetSourceLabel：取资产类型与来源的展示标签
+ * task-assets.ts: display-label mappings for task asset types and sources.
+ * Main functions/types:
+ *   - taskAssetTypeLabel / taskAssetSourceLabel: get display labels for asset type and source
  */
 import type { NewAssetType } from "@/lib/types";
 
 const ASSET_TYPE_LABELS: Record<NewAssetType, string> = {
-  app: "应用",
-  endpoint: "接口",
+  app: "App",
+  endpoint: "Endpoint",
   ip: "IP",
-  root_domain: "根域名",
-  service: "服务",
-  subdomain: "子域名",
+  root_domain: "Root domain",
+  service: "Service",
+  subdomain: "Subdomain",
 };
 
 const TASK_ASSET_SOURCE_LABELS: Record<string, string> = {
-  agent: "Agent 发现",
-  anchor: "黑板锚点",
-  api: "资产 API",
-  company: "企业关联",
-  legacy: "历史关联",
-  manual: "人工加入",
-  system: "系统关联",
-  task: "任务初始化",
+  agent: "Agent-discovered",
+  anchor: "Blackboard anchor",
+  api: "Asset API",
+  company: "Company-linked",
+  legacy: "Legacy link",
+  manual: "Manually added",
+  system: "System-linked",
+  task: "Task initialization",
 };
 
 export function taskAssetTypeLabel(type: NewAssetType): string {

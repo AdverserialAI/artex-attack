@@ -1,8 +1,8 @@
 /**
- * topology-editor.tsx：拓扑编辑器状态持有者，编排画布、节点抽屉、工具栏与各类弹窗。
- * 主要函数/类型：
- *   - TopologyEditor：持有整图状态，所有写操作以后端返回整图替换本地状态
- *   - groupBody / errorText：分组更新请求体构造与错误文案辅助
+ * topology-editor.tsx: topology editor state owner; orchestrates the canvas, node drawer, toolbar, and dialogs.
+ * Main functions/types:
+ *   - TopologyEditor: owns the whole-graph state; every write replaces local state with the graph returned by the backend
+ *   - groupBody / errorText: group-update request body construction and error-text helpers
  */
 "use client";
 
@@ -42,8 +42,8 @@ function groupBody(
 }
 
 /**
- * 拓扑编辑器状态持有者。
- * 所有写操作都用后端返回的整图替换本地状态，前端不做入口/孤儿关系的推断。
+ * Topology editor state owner.
+ * Every write replaces local state with the backend-returned graph; the frontend does not infer entry/orphan relationships.
  */
 export function TopologyEditor({ taskId }: { taskId: string }) {
   const [graph, setGraph] = React.useState<TopologyGraph | null>(null);
@@ -58,10 +58,10 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
   const [boxSelectMode, setBoxSelectMode] = React.useState(false);
   const [boxGroup, setBoxGroup] = React.useState<BoxGroupPrefill | null>(null);
 
-  // 首次加载自动展开/归组：fact 自动建边写入的节点没有坐标（DB 默认 0,0），
-  // 全部堆在原点。坐标堆叠时自动布局一次；按 /24 归组只在「从未自动归组过」时
-  // 做一次（localStorage 记标记），用户拖出/解散分组后不再强制归回——节点不
-  // 必须放在外框中。已有任何分组时不干预。
+  // Auto layout/group on first load: nodes written by fact-based auto edge creation have no coordinates (DB default 0,0),
+  // so they all pile up at the origin. Layout runs once when coordinates overlap; /24 grouping runs only when it has never run before
+  // (marker in localStorage); nodes are never forced back after the user drags them out or dissolves groups — nodes are not
+  // required to sit inside frames. No intervention when any group already exists.
   const maybeAutoLayout = React.useCallback(
     async (g: TopologyGraph) => {
       if (g.groups.length > 0) return;
@@ -90,9 +90,9 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
         }
         markC24Grouped(taskId);
         setGraph(current);
-        toast.success(`已自动展开 ${plan.positions.size} 个节点、${groupCount} 个网段分组`);
+        toast.success(`Auto-laid out ${plan.positions.size} nodes and ${groupCount} subnet groups`);
       } catch (reason) {
-        toast.error(`自动展开失败：${errorText(reason)}`);
+        toast.error(`Auto layout failed: ${errorText(reason)}`);
       }
     },
     [taskId],
@@ -108,7 +108,7 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
         if (!silent) void maybeAutoLayout(next);
       } catch (reason) {
         setLoadError(errorText(reason));
-        if (silent) toast.error(`刷新失败：${errorText(reason)}`);
+        if (silent) toast.error(`Refresh failed: ${errorText(reason)}`);
       } finally {
         setLoading(false);
       }
@@ -136,7 +136,7 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
       return next;
     } catch (reason) {
       if (options?.rethrowOnError) throw reason;
-      toast.error(`操作失败：${errorText(reason)}`);
+      toast.error(`Operation failed: ${errorText(reason)}`);
       return null;
     } finally {
       setBusy(false);
@@ -154,7 +154,7 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [connectMode, connectFrom]);
 
-  // 框选建组：Esc 退出，选中节点后由对话框接管。
+  // Box-select grouping: Esc exits; once nodes are selected the dialog takes over.
   React.useEffect(() => {
     if (!boxSelectMode) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -206,7 +206,7 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
   const handleGroupMoved = React.useCallback(
     (group: TopologyGraphGroup, position: { x: number; y: number }) => {
       if (group.x === position.x && group.y === position.y) return;
-      void run(() => api.patchTopologyGroup(taskId, group.id, groupBody(group, position)), "分组位置已保存");
+      void run(() => api.patchTopologyGroup(taskId, group.id, groupBody(group, position)), "Group position saved");
     },
     [run, taskId],
   );
@@ -221,25 +221,25 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
       };
       if (group.x === next.x && group.y === next.y && group.width === next.width && group.height === next.height)
         return;
-      void run(() => api.patchTopologyGroup(taskId, group.id, groupBody(group, next)), "分组尺寸已保存");
+      void run(() => api.patchTopologyGroup(taskId, group.id, groupBody(group, next)), "Group size saved");
     },
     [run, taskId],
   );
 
-  // 选中分组后 NodeToolbar 的「删除分组」：工具栏内已做两步确认，这里直接执行。
+  // NodeToolbar's "Delete group" on a selected group: the toolbar already confirmed twice, so execute directly.
   const handleGroupDelete = React.useCallback(
     (group: TopologyGraphGroup) => {
-      void run(() => api.deleteTopologyGroup(taskId, group.id), "分组已删除，成员保留在画布上");
+      void run(() => api.deleteTopologyGroup(taskId, group.id), "Group deleted; members kept on the canvas");
     },
     [run, taskId],
   );
 
   const handleBoxSelect = React.useCallback((rect: BoxSelectRect, members: TopologyGraphNode[]) => {
     if (members.length === 0) {
-      toast.info("框选范围内没有节点");
+      toast.info("No nodes in the selected area");
       return;
     }
-    // 进入分组创建流程即退出框选模式，由对话框接管后续交互。
+    // Entering the group-creation flow exits box-select mode; the dialog takes over further interaction.
     setBoxSelectMode(false);
     setBoxGroup({ rect, members });
   }, []);
@@ -248,7 +248,7 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
     return (
       <div className="text-muted-foreground flex flex-1 items-center justify-center gap-2 text-sm">
         <Loader2 className="size-4 animate-spin" />
-        加载拓扑…
+        Loading topology…
       </div>
     );
   }
@@ -256,10 +256,10 @@ export function TopologyEditor({ taskId }: { taskId: string }) {
   if (!graph) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 text-sm">
-        <p className="text-destructive">拓扑加载失败：{loadError ?? "未知错误"}</p>
+        <p className="text-destructive">Failed to load topology: {loadError ?? "unknown error"}</p>
         <Button size="sm" variant="outline" onClick={() => void load()}>
           <RefreshCw className="size-3.5" />
-          重试
+          Retry
         </Button>
       </div>
     );

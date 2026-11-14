@@ -1,6 +1,6 @@
 /**
- * scroll-area.tsx：shadcn/ui 的 ScrollArea 滚动区域组件封装。
- * 主要组件：ScrollArea、ScrollBar。
+ * scroll-area.tsx: shadcn/ui ScrollArea component wrapper.
+ * Main components: ScrollArea, ScrollBar.
  */
 "use client"
 

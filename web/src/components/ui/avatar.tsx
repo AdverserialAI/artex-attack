@@ -1,6 +1,6 @@
 /**
- * avatar.tsx：shadcn/ui 的 Avatar 头像组件封装。
- * 主要组件：Avatar、AvatarImage、AvatarFallback、AvatarGroup、
+ * avatar.tsx: shadcn/ui Avatar component wrapper.
+ * Main components: Avatar, AvatarImage, AvatarFallback, AvatarGroup,
  *   AvatarGroupCount、AvatarBadge。
  */
 "use client"

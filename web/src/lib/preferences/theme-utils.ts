@@ -1,9 +1,9 @@
 /**
- * theme-utils.ts：主题模式的解析、应用与系统主题订阅。
- * 主要函数/类型：
- *   - resolveThemeMode / applyThemeMode：解析 system 偏好并应用 light/dark
- *   - applyThemePreset：应用主题预设（CSS 变量）
- *   - subscribeToSystemTheme：监听操作系统深浅色切换
+ * theme-utils.ts: theme-mode resolution, application, and system-theme subscription.
+ * Main functions/types:
+ *   - resolveThemeMode / applyThemeMode: resolves the system preference and applies light/dark
+ *   - applyThemePreset: applies a theme preset (CSS variables)
+ *   - subscribeToSystemTheme: listens for OS light/dark switches
  */
 import type { ResolvedThemeMode, ThemeMode } from "./theme";
 

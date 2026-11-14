@@ -1,11 +1,11 @@
 /**
- * auth.ts：前端 token 存取与当前用户解析。
- * 主要函数/类型：
- *   - CurrentUser：当前用户展示用结构
- *   - auth：getToken/setToken/clearToken/getCurrentUser 的命名空间对象
+ * auth.ts: frontend token storage and current-user resolution.
+ * Main functions/types:
+ *   - CurrentUser: shape of the current user for display
+ *   - auth: namespace object with getToken/setToken/clearToken/getCurrentUser
  */
 const TOKEN_KEY = "artex_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 天（秒）
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days (seconds)
 
 export interface CurrentUser {
   id: string;
@@ -19,13 +19,13 @@ export interface CurrentUser {
 export const auth = {
   getToken(): string | null {
     if (typeof window === "undefined") return null;
-    // Mock demo：无真实登录，返回一个假 token 让路由守卫放行、直接进主界面。
+    // Mock demo: no real login; returns a fake token so route guards allow entry straight into the main UI.
     return localStorage.getItem(TOKEN_KEY) ?? (process.env.NEXT_PUBLIC_MOCK === "1" ? "mock-demo" : null);
   },
 
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
-    // 同步写 cookie，供 Next.js middleware 服务端读取
+    // Also write the cookie for Next.js middleware to read server-side
     document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
   },
 
@@ -34,7 +34,7 @@ export const auth = {
     document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   },
 
-  // 从 JWT payload 的 sub 字段解析当前用户，仅用于展示，不做签名验证。
+  // Resolve the current user from the JWT payload sub field; display only, no signature verification.
   getCurrentUser(): CurrentUser | null {
     const token = this.getToken();
     if (!token) return null;

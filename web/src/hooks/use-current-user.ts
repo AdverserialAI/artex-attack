@@ -1,7 +1,7 @@
 /**
- * use-current-user.ts：读取当前登录用户的 Hook（含回退默认值）。
- * 主要函数/类型：
- *   - useCurrentUser：从 auth 解析当前用户，未登录时返回内置回退用户
+ * use-current-user.ts: hook that reads the currently logged-in user (with fallback defaults).
+ * Main functions/types:
+ *   - useCurrentUser: resolves the current user from auth; returns a built-in fallback user when logged out
  */
 "use client";
 

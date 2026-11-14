@@ -1,11 +1,11 @@
 /**
- * graph-model.ts：拓扑图数据模型、坐标换算、自动布局与导入导出的核心工具模块。
- * 主要函数/类型：
- *   - 常量（NODE_W/NODE_H、GROUP_DEFAULT_*、EDGE_KIND_META、ENTRY_STATUS_LABEL 等）：画布尺寸、线型语义与状态文案
- *   - findingID / nodeTitle / nodeSubtitle：证据引用解析与节点标题/副标题
- *   - absolutePosition / groupSize / nextGroupPlacement：相对坐标换算、分组尺寸与新分组落位
- *   - autoLayout / LayoutPlan：基于 dagre 的全量两层自动布局
- *   - buildExportPayload / downloadJSON / normalizeImport：JSON 导出载荷、浏览器下载与导入文件解析
+ * graph-model.ts: core module for the topology data model, coordinate conversion, auto layout, and import/export.
+ * Main functions/types:
+ *   - Constants (NODE_W/NODE_H, GROUP_DEFAULT_*, EDGE_KIND_META, ENTRY_STATUS_LABEL, etc.): canvas dimensions, edge-type semantics, and status text
+ *   - findingID / nodeTitle / nodeSubtitle: evidence-reference parsing and node title/subtitle
+ *   - absolutePosition / groupSize / nextGroupPlacement: relative-coordinate conversion, group sizing, and new-group placement
+ *   - autoLayout / LayoutPlan: full two-level auto layout based on dagre
+ *   - buildExportPayload / downloadJSON / normalizeImport: JSON export payload, browser download, and import-file parsing
  */
 import dagre from "@dagrejs/dagre";
 
@@ -18,7 +18,7 @@ import type {
   TopologyNote,
 } from "@/lib/types";
 
-/** 画布节点默认尺寸，与 topology-canvas 里的卡片样式保持一致。 */
+/** Default canvas node size, matching the card styles in topology-canvas. */
 export const NODE_W = 200;
 export const NODE_H = 78;
 export const GROUP_DEFAULT_W = 380;
@@ -35,17 +35,17 @@ export type EdgeKindMeta = {
   chip: string;
 };
 
-/** 四种线型的语义、颜色与虚线样式。 */
+/** Semantics, colors, and dash styles of the four edge types. */
 export const EDGE_KIND_META: Record<TopologyEdgeKind, EdgeKindMeta> = {
   solid: {
-    label: "已突破",
-    hint: "发现漏洞或横向移动成功",
+    label: "Breached",
+    hint: "Vulnerability found or lateral movement succeeded",
     stroke: "#1d4ed8",
     chip: "border-blue-500/40 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-200",
   },
   reachable: {
-    label: "可达",
-    hint: "扫描确认可互通",
+    label: "Reachable",
+    hint: "Connectivity confirmed by scanning",
     stroke: "#94a3b8",
     dash: "6 4",
     chip: "border-slate-400/40 bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200",
@@ -57,12 +57,12 @@ export const EDGE_KIND_OPTIONS: Array<{ value: TopologyEdgeKind; label: string }
 ).map((kind) => ({ value: kind, label: EDGE_KIND_META[kind].label }));
 
 export const ENTRY_STATUS_LABEL: Record<string, string> = {
-  "": "非入口",
-  suspected: "疑似入口",
-  confirmed: "已确认入口",
+  "": "Not an entry",
+  suspected: "Suspected entry",
+  confirmed: "Confirmed entry",
 };
 
-/** 后端用 `finding:12` 记录证据引用；无法解析时返回 null。 */
+/** The backend records evidence references as `finding:12`; returns null when unparseable. */
 export function findingID(evidenceRef: string | undefined): number | null {
   if (!evidenceRef) return null;
   const m = /^finding:(\d+)$/.exec(evidenceRef.trim());
@@ -81,7 +81,7 @@ export function nodeSubtitle(node: TopologyGraphNode): string {
   return parts.join(" · ");
 }
 
-/** 节点坐标是相对坐标：分组内相对框左上角，框外为画布绝对坐标。 */
+/** Node coordinates are relative: relative to the group frame's top-left inside a group, absolute canvas coordinates outside. */
 export function absolutePosition(node: TopologyGraphNode, groups: TopologyGraphGroup[]): { x: number; y: number } {
   if (node.group_id == null) return { x: node.x, y: node.y };
   const group = groups.find((g) => g.id === node.group_id);
@@ -96,7 +96,7 @@ export function groupSize(group: TopologyGraphGroup): { width: number; height: n
   };
 }
 
-/** 画布已有内容的右下边界，用于摆放新元素。 */
+/** Bottom-right boundary of existing canvas content, used for placing new elements. */
 function contentBounds(graph: TopologyGraph): { maxX: number; minY: number; empty: boolean } {
   let maxX = 0;
   let minY = 0;
@@ -115,7 +115,7 @@ function contentBounds(graph: TopologyGraph): { maxX: number; minY: number; empt
   return { maxX, minY, empty };
 }
 
-/** 新分组落在所有内容右侧，避免压住已有节点。 */
+/** New groups are placed to the right of all content to avoid covering existing nodes. */
 export function nextGroupPlacement(graph: TopologyGraph): { x: number; y: number } {
   const box = contentBounds(graph);
   if (box.empty) return { x: 0, y: 0 };
@@ -125,17 +125,17 @@ export function nextGroupPlacement(graph: TopologyGraph): { x: number; y: number
 const GROUP_PAD = 36;
 
 export type LayoutPlan = {
-  /** IP → 新坐标：框内节点为组内相对坐标，框外节点为画布绝对坐标（与 DB 语义一致）。 */
+  /** IP → new coordinates: relative inside a group frame, absolute outside (consistent with DB semantics). */
   positions: Map<string, { x: number; y: number }>;
-  /** 组 id → 新框位与按内容收拢后的尺寸。 */
+  /** Group id → new frame position and size shrunk to fit its contents. */
   groupBoxes: Map<number, { x: number; y: number; width: number; height: number }>;
 };
 
 /**
- * 全量两层 dagre 布局（自动整理）。
- * 第一层：每个分组内部成员按 dagre LR 排布（相对坐标），并据成员包围盒收拢框尺寸；
- * 第二层：分组框视为一个大节点，与框外节点一起做 dagre LR，得到框的绝对位置。
- * 返回坐标与 DB 存储语义一致（组内相对/组外绝对），调用方直接逐个 PATCH 回写。
+ * Full two-level dagre layout (auto arrange).
+ * Level one: members of each group are laid out with dagre LR (relative coordinates), and the frame is shrunk to the members' bounding box;
+ * Level two: group frames are treated as large nodes and laid out with dagre LR together with ungrouped nodes, yielding absolute frame positions.
+ * Returned coordinates match DB storage semantics (relative inside groups / absolute outside); callers PATCH them back one by one.
  */
 export function autoLayout(graph: TopologyGraph): LayoutPlan {
   const positions = new Map<string, { x: number; y: number }>();
@@ -143,7 +143,7 @@ export function autoLayout(graph: TopologyGraph): LayoutPlan {
   const plan: LayoutPlan = { positions, groupBoxes };
   if (graph.nodes.length === 0) return plan;
 
-  // ---- 第一层：组内布局 + 框尺寸收拢 ----
+  // ---- Level one: intra-group layout + frame shrink-to-fit ----
   const groupDims = new Map<number, { width: number; height: number }>();
   for (const group of graph.groups) {
     const members = graph.nodes.filter((n) => n.group_id === group.id);
@@ -162,7 +162,7 @@ export function autoLayout(graph: TopologyGraph): LayoutPlan {
     }
     dagre.layout(g);
 
-    // 成员相对坐标（dagre 返回中心点，转左上角）+ 成员包围盒。
+    // Member relative coordinates (dagre returns centers; convert to top-left) + member bounding box.
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -178,7 +178,7 @@ export function autoLayout(graph: TopologyGraph): LayoutPlan {
       maxX = Math.max(maxX, x + NODE_W);
       maxY = Math.max(maxY, y + NODE_H);
     }
-    // 平移到 padding 原点：成员坐标以框左上角为基准，框尺寸 = 内容 + 双侧 padding。
+    // Translate to the padding origin: member coordinates are relative to the frame's top-left; frame size = content + padding on both sides.
     for (const m of members) {
       const p = rel.get(m.ip);
       if (!p) continue;
@@ -190,7 +190,7 @@ export function autoLayout(graph: TopologyGraph): LayoutPlan {
     });
   }
 
-  // ---- 第二层：框外节点 + 分组框 整体布局 ----
+  // ---- Level two: overall layout of ungrouped nodes + group frames ----
   const containerOf = (ip: string): string => {
     const node = graph.nodes.find((n) => n.ip === ip);
     return node?.group_id != null ? `group:${node.group_id}` : `node:${ip}`;
@@ -279,14 +279,14 @@ export function downloadJSON(filename: string, payload: unknown): void {
 
 function asRecord(value: unknown, what: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${what} 不是对象`);
+    throw new Error(`${what} is not an object`);
   }
   return value as Record<string, unknown>;
 }
 
 function asArray(value: unknown, what: string): unknown[] {
   if (value == null) return [];
-  if (!Array.isArray(value)) throw new Error(`${what} 不是数组`);
+  if (!Array.isArray(value)) throw new Error(`${what} is not an array`);
   return value;
 }
 
@@ -310,22 +310,22 @@ function asKind(value: unknown): TopologyEdgeKind {
 }
 
 /**
- * 解析导出文件里的 topology 数据集。宽松补默认值、严格校验骨架结构，
- * 避免脏数据直接打到后端。
+ * Parses the topology dataset from an export file. Lenient with defaults, strict about the skeleton structure,
+ * so dirty data never reaches the backend.
  */
 export function normalizeImport(text: string): TopologyGraph {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
-    throw new Error("不是合法的 JSON 文件");
+    throw new Error("Not a valid JSON file");
   }
-  const root = asRecord(raw, "文件");
+  const root = asRecord(raw, "file");
   if (asString(root.format) !== ASSET_GRAPH_FORMAT) {
-    throw new Error(`format 必须是 ${ASSET_GRAPH_FORMAT}`);
+    throw new Error(`format must be ${ASSET_GRAPH_FORMAT}`);
   }
   if (asNumber(root.version) !== ASSET_GRAPH_VERSION) {
-    throw new Error(`仅支持 version ${ASSET_GRAPH_VERSION}`);
+    throw new Error(`Only version ${ASSET_GRAPH_VERSION} is supported`);
   }
   const datasets = asRecord(root.datasets, "datasets");
   const topology = asRecord(datasets.topology, "datasets.topology");
@@ -333,7 +333,7 @@ export function normalizeImport(text: string): TopologyGraph {
   const nodes: TopologyGraphNode[] = asArray(topology.nodes, "datasets.topology.nodes").map((item, idx) => {
     const n = asRecord(item, `nodes[${idx}]`);
     const ip = asString(n.ip);
-    if (!ip) throw new Error(`nodes[${idx}] 缺少 ip`);
+    if (!ip) throw new Error(`nodes[${idx}] is missing ip`);
     const status = asString(n.entry_status);
     return {
       ip,
@@ -349,14 +349,14 @@ export function normalizeImport(text: string): TopologyGraph {
   });
   const seen = new Set<string>();
   for (const node of nodes) {
-    if (seen.has(node.ip)) throw new Error(`节点 IP 重复：${node.ip}`);
+    if (seen.has(node.ip)) throw new Error(`Duplicate node IP: ${node.ip}`);
     seen.add(node.ip);
   }
 
   const groups: TopologyGraphGroup[] = asArray(topology.groups, "datasets.topology.groups").map((item, idx) => {
     const g = asRecord(item, `groups[${idx}]`);
     const name = asString(g.name);
-    if (!name) throw new Error(`groups[${idx}] 缺少 name`);
+    if (!name) throw new Error(`groups[${idx}] is missing name`);
     return {
       id: asNumber(g.id, -(idx + 1)),
       name,
@@ -372,7 +372,7 @@ export function normalizeImport(text: string): TopologyGraph {
     const e = asRecord(item, `edges[${idx}]`);
     const src = asString(e.src_ip);
     const dst = asString(e.dst_ip);
-    if (!src || !dst) throw new Error(`edges[${idx}] 缺少 src_ip 或 dst_ip`);
+    if (!src || !dst) throw new Error(`edges[${idx}] is missing src_ip or dst_ip`);
     return {
       id: asNumber(e.id, 0),
       src_ip: src,

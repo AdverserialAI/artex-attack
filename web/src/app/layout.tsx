@@ -1,8 +1,9 @@
 /**
- * layout.tsx：应用根布局，负责 metadata、主题/偏好启动脚本、字体变量以及全局 Provider（Tooltip、Preferences、Toaster）。
- * 主要函数/类型：
- *   - metadata：站点标题与描述
- *   - RootLayout：渲染 html/body 并挂载全部全局 Provider
+ * layout.tsx: Application root layout. Handles metadata, the theme/preference
+ * boot script, font variables, and global providers (Tooltip, Preferences, Toaster).
+ * Main functions/types:
+ *   - metadata: site title and description
+ *   - RootLayout: renders html/body and mounts all global providers
  */
 import type { ReactNode } from "react";
 

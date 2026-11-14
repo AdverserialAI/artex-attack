@@ -1,6 +1,6 @@
 /**
- * table.tsx：shadcn/ui 的 Table 表格组件封装。
- * 主要组件：Table、TableHeader、TableBody、TableFooter、TableHead、TableRow、
+ * table.tsx: shadcn/ui Table component wrapper.
+ * Main components: Table, TableHeader, TableBody, TableFooter, TableHead, TableRow,
  *   TableCell、TableCaption。
  */
 "use client"
