@@ -67,10 +67,18 @@ func (a *templateAPI[T, In, P]) notFoundMsg() string {
 // templateEntityFields 经注入的访问器取公共字段（Go 不允许对类型参数取字段，
 // 访问器在两侧 api 定义处注入，见 planner_templates.go / worker_templates.go）。
 type templateEntityFields[T any] struct {
-	id   func(*T) int64
-	name func(*T) string
-	nkey func(*T) string
-	body func(*T) string
+	id      func(*T) int64
+	name    func(*T) string
+	setName func(*T, string)
+	nkey    func(*T) string
+	body    func(*T) string
+	builtin func(*T) bool
+}
+
+func (a *templateAPI[T, In, P]) localize(tpl *T) {
+	if tpl != nil && a.fields.builtin(tpl) {
+		a.fields.setName(tpl, localizeScenarioName(a.fields.name(tpl)))
+	}
 }
 
 // parseValidateTemplate text/template parse + missingkey=error——planner/worker 试渲染校验唯一共享的一步
@@ -122,6 +130,9 @@ func (a *templateAPI[T, In, P]) list(s *Server, w http.ResponseWriter, _ *http.R
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	for _, tpl := range templates {
+		a.localize(tpl)
+	}
 	// 【二开·P-LOG·S11】DEBUG 记列表（排障：前端下拉数据哪来的）。
 	xlog.Debugf("[tpl] %s-templates list：共 %d 个", a.kind, len(templates))
 	writeJSON(w, http.StatusOK, map[string]any{"templates": templates})
@@ -150,6 +161,7 @@ func (a *templateAPI[T, In, P]) create(s *Server, w http.ResponseWriter, r *http
 		a.writeErrM(w, err)
 		return
 	}
+	a.localize(tpl)
 	// 【二开·P-LOG·S11】INFO 记创建（排障：这个模板什么时候进来的）。
 	id, name, nkey, body := a.fields.id(tpl), a.fields.name(tpl), a.fields.nkey(tpl), a.fields.body(tpl)
 	log.Printf("[tpl] %s 模板创建：#%d %q（nkey=%s，%dB）", a.kind, id, name, nkey, len(body))
@@ -190,6 +202,7 @@ func (a *templateAPI[T, In, P]) update(s *Server, w http.ResponseWriter, r *http
 		a.writeErrM(w, err)
 		return
 	}
+	a.localize(tpl)
 	// 【二开·P-LOG·S11】INFO 记更新（审计：谁改了提示词）。
 	id, name := a.fields.id(tpl), a.fields.name(tpl)
 	log.Printf("[tpl] %s 模板更新：#%d %q", a.kind, id, name)
@@ -238,6 +251,7 @@ func (a *templateAPI[T, In, P]) setDefault(s *Server, w http.ResponseWriter, r *
 		a.writeErrM(w, err)
 		return
 	}
+	a.localize(tpl)
 	// 【二开·P-LOG·S11】INFO 记默认切换（排障：默认模板什么时候换的）。
 	id, name := a.fields.id(tpl), a.fields.name(tpl)
 	log.Printf("[tpl] %s 默认模板切换 → #%d %q", a.kind, id, name)

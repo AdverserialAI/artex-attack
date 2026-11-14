@@ -116,6 +116,7 @@ func (s *Server) interceptListRules(w http.ResponseWriter, r *http.Request) {
 	if rules == nil {
 		rules = []db.InterceptRule{}
 	}
+	localizeInterceptRules(rules)
 	writeJSON(w, 200, map[string]any{"rules": rules})
 }
 
@@ -138,6 +139,7 @@ func (s *Server) interceptCreateRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.m.interceptor.Invalidate()
+	localizeInterceptRule(&rule)
 	writeJSON(w, 200, rule)
 }
 
@@ -165,6 +167,7 @@ func (s *Server) interceptUpdateRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.m.interceptor.Invalidate()
+	localizeInterceptRule(&rule)
 	writeJSON(w, 200, rule)
 }
 
@@ -225,6 +228,9 @@ func (s *Server) interceptListPending(w http.ResponseWriter, r *http.Request) {
 	if pending == nil {
 		pending = []db.InterceptPending{}
 	}
+	for i := range pending {
+		localizeInterceptPending(&pending[i])
+	}
 	writeJSON(w, 200, map[string]any{"pending": pending})
 }
 
@@ -247,6 +253,7 @@ func (s *Server) interceptGetOne(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "not found")
 		return
 	}
+	localizeInterceptPending(p)
 	writeJSON(w, 200, p)
 }
 
@@ -275,6 +282,7 @@ func (s *Server) interceptListTaskItems(w http.ResponseWriter, r *http.Request) 
 		if items == nil {
 			items = []db.InterceptApprovalRow{}
 		}
+		localizeInterceptApprovalRows(items)
 		writeJSON(w, 200, map[string]any{"items": items, "total": len(items)})
 		return
 	}
@@ -287,6 +295,7 @@ func (s *Server) interceptListTaskItems(w http.ResponseWriter, r *http.Request) 
 	if items == nil {
 		items = []db.InterceptApprovalRow{}
 	}
+	localizeInterceptApprovalRows(items)
 	writeJSON(w, 200, map[string]any{"items": items, "total": total, "page": page, "page_size": size})
 }
 
@@ -310,6 +319,7 @@ func (s *Server) interceptHistory(w http.ResponseWriter, r *http.Request) {
 		if items == nil {
 			items = []db.InterceptApprovalRow{}
 		}
+		localizeInterceptApprovalRows(items)
 		writeJSON(w, 200, map[string]any{"items": items, "total": len(items)})
 		return
 	}
@@ -322,6 +332,7 @@ func (s *Server) interceptHistory(w http.ResponseWriter, r *http.Request) {
 	if items == nil {
 		items = []db.InterceptApprovalRow{}
 	}
+	localizeInterceptApprovalRows(items)
 	writeJSON(w, 200, map[string]any{"items": items, "total": total, "page": page, "page_size": size})
 }
 
@@ -529,6 +540,7 @@ func (s *Server) interceptDetail(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "not found")
 		return
 	}
+	localizeInterceptDetail(detail)
 	writeJSON(w, 200, detail)
 }
 

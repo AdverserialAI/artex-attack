@@ -796,6 +796,7 @@ func (s *Server) pgListTools(w http.ResponseWriter, r *http.Request) {
 	if ts == nil {
 		ts = []*db.Tool{}
 	}
+	localizeToolCatalog(s, ts)
 	// Usage is best-effort decoration. Runtime tool resolution keeps using the plain
 	// catalog query, so agent assembly never pays for this aggregate.
 	counts, countErr := pg.ToolUsageCounts()
@@ -2145,8 +2146,8 @@ func (s *Server) pgListModels(w http.ResponseWriter, r *http.Request) {
 // (see agent.nowStr, rendered fresh each turn), so a prompt may always reference
 // {{.Now}} — e.g. subtract it from a fixed start stamp to reason about elapsed time.
 var globalPromptVars = []db.PromptVar{
-	{Name: "Now", Description: "服务端当前时间（每次运行实时刷新；可与固定起始时间相减判断已用时长）", Example: "2026-08-11 14:30:00 CST", Source: "runtime"},
-	{Name: "DataDir", Description: "服务端数据根目录（所有任务/会话产物的根；各 agent 实际写盘在其下的子目录，如 <DataDir>/<taskID>）", Example: "/app/data", Source: "runtime"},
+	{Name: "Now", Description: "Current server time (refreshed on every run; compare it with a fixed start time to determine elapsed time)", Example: "2026-08-11 14:30:00 CST", Source: "runtime"},
+	{Name: "DataDir", Description: "Server data root for all task and conversation artifacts; each agent writes to a subdirectory such as <DataDir>/<taskID>", Example: "/app/data", Source: "runtime"},
 }
 
 // withGlobalVars appends the universal runtime vars onto an agent's own catalog,

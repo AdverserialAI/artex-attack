@@ -32,6 +32,7 @@ func (s *Server) assetInterceptListRules(w http.ResponseWriter, r *http.Request)
 	if rules == nil {
 		rules = []db.AssetInterceptRule{}
 	}
+	localizeAssetInterceptRules(rules)
 	writeJSON(w, 200, map[string]any{"rules": rules})
 }
 
@@ -53,6 +54,7 @@ func (s *Server) assetInterceptCreateRule(w http.ResponseWriter, r *http.Request
 		writeErr(w, 500, err.Error())
 		return
 	}
+	localizeAssetInterceptRule(&rule)
 	writeJSON(w, 200, rule)
 }
 
@@ -79,6 +81,7 @@ func (s *Server) assetInterceptUpdateRule(w http.ResponseWriter, r *http.Request
 		writeErr(w, 500, err.Error())
 		return
 	}
+	localizeAssetInterceptRule(&rule)
 	writeJSON(w, 200, rule)
 }
 

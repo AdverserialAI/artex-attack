@@ -203,33 +203,33 @@ func intp(v int) *int { return &v }
 // 注：planner/worker/mainagent/auto 的交互式 shell 默认由下方 interactive_shell_default_v1
 // 块统一置 true（尊重后续 toggle）；这里的 interactiveShell 只给需要「建行即默认开」的新 agent。
 var builtinAgents = []builtinAgent{
-	{"goals", "目标拆解", "goals", "把渗透任务目标拆解成若干独立、可验证的子目标。", []promptVar{
-		{"EngagementDescription", "任务描述（测试对象/背景）", "测试 example.com 站点", "exploration"},
+	{"goals", "Goal Decomposer", "goals", "Breaks penetration-testing goals into independent, verifiable sub-goals.", []promptVar{
+		{"EngagementDescription", "Task description (target and background)", "Test the example.com site", "exploration"},
 		// Now 是全局 runtime 变量(见 server.globalPromptVars),不再在各 agent 目录里
 		// 重复定义,否则 withGlobalVars 追加时会与全局项撞名。
 	}, false, nil},
-	{"planner", "规划", "planner", "读取态势、判定目标，只在确有未覆盖的新方向时补充探索意图（每任务一个规划循环）。", []promptVar{
-		{"Goal", "任务总目标", "拿下 example.com 的管理员权限", "exploration"},
-		{"AssetSummary", "资产计数/类型分布摘要(可选)", "domain:3 ip:5 site:2", "distilled"},
+	{"planner", "Planner", "planner", "Reads the current situation, evaluates goals, and adds exploration intents only for genuinely uncovered directions (one planning loop per task).", []promptVar{
+		{"Goal", "Overall task goal", "Gain administrator access to example.com", "exploration"},
+		{"AssetSummary", "Asset count and type summary (optional)", "domain:3 ip:5 site:2", "distilled"},
 	}, false, nil},
-	{"mainagent", "主", "main", "人机接口：观察进展，把人的意图落成 hint 或高优先级意图。", []promptVar{
-		{"Goal", "当前任务目标", "拿下 example.com 的管理员权限", "exploration"},
-		{"AssetSummary", "开局态势摘要(可选)", "domain:3 ip:5", "distilled"},
-		{"FindingsSummary", "已确认漏洞摘要(可选)", "high:1 medium:2", "distilled"},
+	{"mainagent", "Main Agent", "main", "Human-machine interface: observes progress and turns human input into hints or high-priority intents.", []promptVar{
+		{"Goal", "Current task goal", "Gain administrator access to example.com", "exploration"},
+		{"AssetSummary", "Initial situation summary (optional)", "domain:3 ip:5", "distilled"},
+		{"FindingsSummary", "Confirmed findings summary (optional)", "high:1 medium:2", "distilled"},
 	}, false, nil},
-	{"worker", "执行", "worker", "领取一条意图执行，把发现的事实/漏洞写回知识图谱后停止。", []promptVar{
-		{"ProxyAddr", "记录代理地址(驱动 if 双文案)", "127.0.0.1:8080", "runtime"},
-		{"WorkerName", "worker 自我标识(可选)", "worker-1", "runtime"},
+	{"worker", "Worker", "worker", "Claims and executes one intent, writes discovered facts and findings back to the knowledge graph, then stops.", []promptVar{
+		{"ProxyAddr", "Recorded proxy address (selects the conditional prompt text)", "127.0.0.1:8080", "runtime"},
+		{"WorkerName", "Worker identifier (optional)", "worker-1", "runtime"},
 	}, false, nil},
 	// Auto:内置「平台操作」agent。不参与渗透编排循环,经对话页驱动,用工具操作平台。
-	{"auto", "Auto", "assistant", "平台操作助手：用工具管理任务(建/看/暂停/给提示)与资产，并可创建/修改 skill、自定义工具、MCP。", nil, false, nil},
+	{"auto", "Auto", "assistant", "Platform operations assistant: manages tasks (create, inspect, pause, and hint) and assets with tools, and can create or modify skills, custom tools, and MCP servers.", nil, false, nil},
 	// 渗透测试:内置「独立渗透」agent。经对话页驱动,一人从侦察到收尾走完整条渗透链,自己规划自己执行自己验证。默认开启交互式 shell。
-	{"pentest", "渗透测试", "assistant", "独立渗透 agent：一人从侦察→找攻击面→深入利用→验证→收尾走完整条链，自己规划、自己执行、自己对抗式验证。", nil, true, intp(0)},
+	{"pentest", "Penetration Tester", "assistant", "Independent penetration-testing agent: handles the full chain from reconnaissance and attack-surface discovery through exploitation, verification, and wrap-up, including adversarial validation.", nil, true, intp(0)},
 	// 【二开·P-AGENT·D6 内置review agent种子】
 	// 功能介绍：builtinAgents 追加 review 行——意图审核 agent（AI预审+人对话协作者），role=assistant 免 CHECK 迁移
 
-	{"review", "审核", "assistant", "意图审核 agent：AI 预审待审意图（proposed+executor=review 双条件，质量/重复/危险度/executor 适配）并与人对话整理优化点；写动作经按钮确认卡由人放行。", []promptVar{
-		{"Goal", "当前任务目标", "拿下 example.com 的管理员权限", "exploration"},
+	{"review", "Review", "assistant", "Intent review agent: pre-reviews proposed intents assigned to review for quality, duplication, risk, and executor fit; discusses improvements with the user and requires confirmation for write actions.", []promptVar{
+		{"Goal", "Current task goal", "Gain administrator access to example.com", "exploration"},
 	}, false, nil},
 }
 

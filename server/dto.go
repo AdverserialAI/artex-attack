@@ -126,7 +126,7 @@ func taskDTO(t *Task, status string) TaskDTO {
 		ExplorationID:      t.ExpID,
 		Name:               lifecycle.Name,
 		CategoryID:         lifecycle.CategoryID,
-		CategoryName:       lifecycle.CategoryName,
+		CategoryName:       localizeScenarioName(lifecycle.CategoryName),
 		CategoryNKey:       lifecycle.CategoryNKey,
 		Pinned:             lifecycle.PinnedAt > 0,
 		PinnedAt:           completedRFC(lifecycle.PinnedAt),

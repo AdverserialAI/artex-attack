@@ -100,6 +100,7 @@ func (s *Server) pgListTaskCategories(w http.ResponseWriter, _ *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	localizeTaskCategories(categories)
 	writeJSON(w, http.StatusOK, map[string]any{"categories": categories})
 }
 
@@ -117,6 +118,7 @@ func (s *Server) pgCreateTaskCategory(w http.ResponseWriter, r *http.Request) {
 		writeTaskCategoryError(w, err)
 		return
 	}
+	localizeTaskCategory(category)
 	writeJSON(w, http.StatusCreated, category)
 }
 
@@ -156,6 +158,7 @@ func (s *Server) pgRenameTaskCategory(w http.ResponseWriter, r *http.Request) {
 		writeTaskCategoryError(w, db.ErrTaskCategoryNotFound)
 		return
 	}
+	localizeTaskCategory(category)
 	writeJSON(w, http.StatusOK, category)
 }
 
@@ -285,5 +288,6 @@ func (s *Server) updateTasksCategoryBatch(w http.ResponseWriter, r *http.Request
 			}
 		}
 	}
+	localizeTaskCategory(category)
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "category": category})
 }

@@ -452,6 +452,9 @@ func (s *Server) listTaskArchives(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, err.Error())
 		return
 	}
+	for i := range result.Items {
+		localizeTaskArchive(&result.Items[i])
+	}
 	writeJSON(w, 200, result)
 }
 
@@ -470,6 +473,7 @@ func (s *Server) getTaskArchive(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "归档不存在")
 		return
 	}
+	localizeTaskArchive(item)
 	writeJSON(w, 200, item)
 }
 

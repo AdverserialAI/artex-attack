@@ -81,10 +81,12 @@ var plannerTemplatesAPI = &templateAPI[db.PlannerTemplate, db.PlannerTemplateInp
 		return db.PlannerTemplatePatch{Name: name, Body: body}
 	},
 	fields: templateEntityFields[db.PlannerTemplate]{
-		id:   func(t *db.PlannerTemplate) int64 { return t.ID },
-		name: func(t *db.PlannerTemplate) string { return t.Name },
-		nkey: func(t *db.PlannerTemplate) string { return t.NKey },
-		body: func(t *db.PlannerTemplate) string { return t.Body },
+		id:      func(t *db.PlannerTemplate) int64 { return t.ID },
+		name:    func(t *db.PlannerTemplate) string { return t.Name },
+		setName: func(t *db.PlannerTemplate, name string) { t.Name = name },
+		nkey:    func(t *db.PlannerTemplate) string { return t.NKey },
+		body:    func(t *db.PlannerTemplate) string { return t.Body },
+		builtin: func(t *db.PlannerTemplate) bool { return t.Builtin },
 	},
 	listFn:       (*db.DB).ListPlannerTemplates,
 	createFn:     (*db.DB).CreatePlannerTemplate,
