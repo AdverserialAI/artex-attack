@@ -12,6 +12,7 @@
 FROM node:22-bookworm@sha256:e13726ca604184d7a91fcacab1fc09eefd642dc28e79ac34e85540dd93b78cfb AS node-runtime
 FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
 ARG TARGETARCH
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 # Node is copied from the pinned official image instead of executing a remote setup script.
 COPY --from=node-runtime /usr/local/bin/ /usr/local/bin/
 COPY --from=node-runtime /usr/local/lib/node_modules/ /usr/local/lib/node_modules/
@@ -41,8 +42,12 @@ RUN chmod +x /app/artex /app/start.sh
 COPY skills/ /app/skills/
 # JWT 签名密钥落到持久化数据卷，容器重建后旧登录 token 仍有效。
 RUN ln -sf /app/data/jwt.key /app/jwt.key
+RUN install -d -o 65532 -g 65532 -m 0700 /home/artex /app/data \
+    && chown -R 65532:65532 /opt/ms-playwright
+ENV HOME=/home/artex
 # data/（SQLite + jwt.key）持久化点
 VOLUME ["/app/data"]
 EXPOSE 8787 8788
+USER 65532:65532
 ENTRYPOINT ["/app/start.sh"]
 CMD ["-addr", ":8787", "-proxy", ":8788"]
