@@ -9,12 +9,32 @@ credential file. It never contains the credential itself:
 
 ```json
 {
-  "provider": "openai",
-  "model": "adverserial/cyberseek",
-  "base_url": "https://api.adverserial.ai/v1",
-  "api_key_file": "/run/adverserial/current/cyberseek-api-key"
+  "version": 1,
+  "providers": [
+    {
+      "provider": "openai",
+      "model": "adverserial/cyberseek",
+      "transport": "attested-gateway",
+      "base_url": "http://attested-inference-gateway:8787/v1",
+      "api_key_file": "/run/adverserial/current/attested-gateway-token"
+    }
+  ]
 }
 ```
+
+The HTTP URL above is a private Docker-network hop inside the same measured
+confidential VM. It is not a public or ordinary CyberSEEK API endpoint. The
+credential is a random per-agent capability accepted only by the sibling
+attested-inference gateway; it is never the user's platform API key.
+
+For managed CyberSEEK, ARTEX accepts exactly this model, transport, internal
+gateway URL and local-token path. It rejects direct access to
+`api.adverserial.ai`, caller-selected endpoints and every ordinary API
+fallback. The sibling gateway applies the ACK confidential-inference protocol:
+it verifies fresh Intel TDX and NVIDIA evidence and the pinned production
+policy, pins the quote-bound TLS identity, obtains a single-request wallet
+entitlement, uses encrypted request/response transport and releases a response
+only after its signed inference receipt verifies.
 
 ARTEX accepts only `anthropic`, `openai`, or `openai-responses`, requires HTTPS
 for a custom endpoint, restricts both files to the guard-owned
