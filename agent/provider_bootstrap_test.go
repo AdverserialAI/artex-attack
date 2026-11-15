@@ -18,7 +18,7 @@ func TestConfigFromBootstrapReadsPrivateKeyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := filepath.Join(root, "artex-llm.json")
-	document := `{"version":1,"providers":[{"provider":"openai","model":"adverserial/cyberseek","base_url":"https://api.adverserial.ai/v1","api_key_file":"` + key + `"}]}`
+	document := `{"version":1,"providers":[{"provider":"openai","model":"adverserial/cyberseek","transport":"attested-gateway","base_url":"http://attested-inference-gateway:8787/v1","api_key_file":"` + key + `"}]}`
 	if err := os.WriteFile(config, []byte(document), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestConfigFromBootstrapReadsPrivateKeyFile(t *testing.T) {
 		t.Fatalf("bootstrap config count = %d", len(configs))
 	}
 	cfg := configs[0]
-	if cfg.Format != llm.FormatOpenAI || cfg.Model != "adverserial/cyberseek" || cfg.APIKey == "" || cfg.Proxy != runtimeBootstrapProxy {
+	if cfg.Format != llm.FormatOpenAI || cfg.Model != "adverserial/cyberseek" || cfg.APIKey == "" || cfg.Proxy != "" || cfg.BaseURL != attestedGatewayBaseURL {
 		t.Fatalf("unexpected bootstrap config: %#v", cfg)
 	}
 }
@@ -79,13 +79,15 @@ func TestConfigFromBootstrapRejectsEscapesBroadModesAndHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, document := range map[string]string{
-		"escape":     `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `"}]}`,
-		"http":       `{"version":1,"providers":[{"provider":"openai","base_url":"http://example.test/v1","api_key_file":"` + outside + `"}]}`,
-		"query":      `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1?token=leak","api_key_file":"` + outside + `"}]}`,
-		"fragment":   `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1#fragment","api_key_file":"` + outside + `"}]}`,
-		"wrong-host": `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1","api_key_file":"` + outside + `"}]}`,
-		"unknown":    `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `","secret":"value"}]}`,
-		"duplicate":  `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `"},{"provider":"openai","api_key_file":"` + outside + `"}]}`,
+		"escape":           `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `"}]}`,
+		"http":             `{"version":1,"providers":[{"provider":"openai","base_url":"http://example.test/v1","api_key_file":"` + outside + `"}]}`,
+		"query":            `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1?token=leak","api_key_file":"` + outside + `"}]}`,
+		"fragment":         `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1#fragment","api_key_file":"` + outside + `"}]}`,
+		"wrong-host":       `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1","api_key_file":"` + outside + `"}]}`,
+		"direct-cyberseek": `{"version":1,"providers":[{"provider":"openai","model":"adverserial/cyberseek","base_url":"https://api.adverserial.ai/v1","api_key_file":"` + outside + `"}]}`,
+		"wrong-gateway":    `{"version":1,"providers":[{"provider":"openai","model":"adverserial/cyberseek","transport":"attested-gateway","base_url":"http://evil-gateway:8787/v1","api_key_file":"` + outside + `"}]}`,
+		"unknown":          `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `","secret":"value"}]}`,
+		"duplicate":        `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `"},{"provider":"openai","api_key_file":"` + outside + `"}]}`,
 	} {
 		config := filepath.Join(root, name+".json")
 		if err := os.WriteFile(config, []byte(document), 0o600); err != nil {

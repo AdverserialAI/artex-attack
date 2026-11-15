@@ -232,6 +232,7 @@ type bootstrapConfig struct {
 	Model      string `json:"model,omitempty"`
 	BaseURL    string `json:"base_url,omitempty"`
 	APIKeyFile string `json:"api_key_file"`
+	Transport  string `json:"transport,omitempty"`
 }
 
 type bootstrapDocument struct {
@@ -242,6 +243,7 @@ type bootstrapDocument struct {
 var runtimeSecretRoot = "/run/adverserial/current"
 
 const runtimeBootstrapProxy = "http://llm-egress-proxy:8080"
+const attestedGatewayBaseURL = "http://attested-inference-gateway:8787/v1"
 
 // configsFromBootstrap reads a guard-authored provider chain and its separate
 // key files. The measured runtime mounts this tree read-only. Key bytes never
@@ -270,7 +272,18 @@ func configsFromBootstrap(path string) ([]Config, error) {
 			return nil, fmt.Errorf("duplicate LLM bootstrap provider")
 		}
 		seen[provider.Provider] = true
-		if provider.BaseURL != "" {
+		proxy := runtimeBootstrapProxy
+		if provider.Transport == "attested-gateway" {
+			if provider.Provider != "openai" || provider.Model != "adverserial/cyberseek" || provider.BaseURL != attestedGatewayBaseURL {
+				return nil, fmt.Errorf("invalid attested inference gateway bootstrap")
+			}
+			proxy = ""
+		} else if provider.Transport != "" {
+			return nil, fmt.Errorf("unsupported LLM bootstrap transport")
+		} else if provider.Model == "adverserial/cyberseek" {
+			return nil, fmt.Errorf("CyberSEEK requires the attested inference gateway")
+		}
+		if provider.BaseURL != "" && provider.Transport != "attested-gateway" {
 			parsed, err := url.Parse(provider.BaseURL)
 			if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 				return nil, fmt.Errorf("LLM bootstrap requires a verified HTTPS endpoint")
@@ -278,9 +291,6 @@ func configsFromBootstrap(path string) ([]Config, error) {
 			expectedHost := "api.anthropic.com"
 			if provider.Provider == "openai" || provider.Provider == "openai-responses" {
 				expectedHost = "api.openai.com"
-				if provider.Model == "adverserial/cyberseek" {
-					expectedHost = "api.adverserial.ai"
-				}
 			}
 			if parsed.Hostname() != expectedHost || (parsed.Port() != "" && parsed.Port() != "443") {
 				return nil, fmt.Errorf("LLM bootstrap endpoint is not approved for provider")
@@ -294,11 +304,11 @@ func configsFromBootstrap(path string) ([]Config, error) {
 		if strings.TrimSpace(apiKey) != apiKey || len(apiKey) < 20 || len(apiKey) > 2048 || strings.IndexFunc(apiKey, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
 			return nil, fmt.Errorf("invalid runtime LLM credential")
 		}
-		configs = append(configs, ConfigFrom(provider.Provider, provider.Model, provider.BaseURL, apiKey, runtimeBootstrapProxy))
+		configs = append(configs, ConfigFrom(provider.Provider, provider.Model, provider.BaseURL, apiKey, proxy))
 	}
 	// The measured SaaS runtime keeps ARTEX off every Internet-routed Docker
-	// network. Model traffic can leave only through the sibling CONNECT proxy,
-	// whose destination allowlist is part of the attested Compose measurement.
+	// network. BYOK traffic can leave only through the sibling CONNECT proxy;
+	// CyberSEEK reaches only the internal ACK-compatible attested gateway.
 	return configs, nil
 }
 
