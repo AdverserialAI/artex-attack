@@ -306,8 +306,20 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 			xlog.SetLevel(v)
 		}
 	}
-	// precedence: persisted DB config > env.
-	if cfg, ok := s.loadLLMConfig(); ok {
+	// A measured-runtime bootstrap is guard-authored and takes precedence over
+	// mutable database profiles. This keeps SaaS credentials out of PostgreSQL
+	// and prevents a stale profile from overriding the attested deployment.
+	if os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE") != "" {
+		if cfg, ok := agent.FromEnv(); ok {
+			if err := s.applyLLM(cfg); err != nil {
+				log.Printf("[engine] runtime LLM bootstrap init failed — engine idle: %v", err)
+			} else {
+				log.Printf("[engine] LLM configured from measured runtime bootstrap: %s / %s", cfg.Provider(), cfg.Model)
+			}
+		} else {
+			log.Printf("[engine] runtime LLM bootstrap rejected — engine idle")
+		}
+	} else if cfg, ok := s.loadLLMConfig(); ok {
 		if err := s.applyLLM(cfg); err != nil {
 			log.Printf("[engine] saved LLM config init failed — engine idle: %v", err)
 		} else {
@@ -579,6 +591,9 @@ func (s *Server) applyLLM(cfg agent.Config) error {
 // loadProfileConfig builds an agent.Config from a specific profile id (with its key).
 // ok=false when the profile is missing or has no api key.
 func (s *Server) loadProfileConfig(id int64) (agent.Config, bool) {
+	if os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE") != "" {
+		return agent.Config{}, false
+	}
 	p, err := s.m.pg.ProfileByID(id)
 	if err != nil || p == nil {
 		return agent.Config{}, false
@@ -592,6 +607,9 @@ func (s *Server) loadProfileConfig(id int64) (agent.Config, bool) {
 // can't happen (FK ON DELETE SET NULL); an otherwise-invalid one is dropped downstream
 // by loadProfileConfig, letting the caller fall back.
 func (s *Server) effectiveProfileForAgent(agentKey string, pinID *int64) *int64 {
+	if os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE") != "" {
+		return nil
+	}
 	if s.m.pg != nil && agentKey != "" {
 		if a, _ := s.m.pg.GetAgentByKey(agentKey); a != nil && a.LLMProfileID != nil {
 			return a.LLMProfileID
@@ -1425,6 +1443,10 @@ func (s *Server) getLLM(w http.ResponseWriter, r *http.Request) {
 
 // setLLM configures the LLM at runtime. A blank api_key keeps the existing key.
 func (s *Server) setLLM(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE") != "" {
+		writeErr(w, http.StatusLocked, "LLM configuration is sealed by the confidential runtime")
+		return
+	}
 	var req struct {
 		Provider        string  `json:"provider"`
 		Model           string  `json:"model"`

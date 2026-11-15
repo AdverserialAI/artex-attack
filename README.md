@@ -80,6 +80,7 @@ export ARTEX_PG_DSN='postgres://artex:密码@127.0.0.1:5432/artex?sslmode=disabl
 | 换环境迁移方案               | [docs/ARTEX-换环境迁移方案.md](docs/ARTEX-换环境迁移方案.md)         |
 | 全流程代码链                | [docs/ARTEX-二开-全流程代码链文档.md](docs/ARTEX-二开-全流程代码链文档.md) |
 | 更新日志                  | [CHANGELOG.md](CHANGELOG.md)                           |
+| Confidential SaaS LLM bootstrap | [docs/CONFIDENTIAL-SaaS-LLM.md](docs/CONFIDENTIAL-SaaS-LLM.md) |
 
 ## 关注我们
 

@@ -18,12 +18,14 @@ package agent
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -151,6 +153,15 @@ func compactionConfig(windowTokens int) *compaction.Config {
 //	ARTEX_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
 //	ANTHROPIC_API_KEY / OPENAI_API_KEY         = credentials
 func FromEnv() (Config, bool) {
+	if bootstrap := strings.TrimSpace(os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE")); bootstrap != "" {
+		cfg, err := configFromBootstrap(bootstrap)
+		if err != nil {
+			// Fail closed. A configured measured-runtime bootstrap must never
+			// fall back to process environment credentials.
+			return Config{}, false
+		}
+		return cfg, true
+	}
 	prov := os.Getenv("ARTEX_LLM_PROVIDER")
 	anthKey := os.Getenv("ANTHROPIC_API_KEY")
 	oaiKey := os.Getenv("OPENAI_API_KEY")
@@ -197,6 +208,82 @@ func FromEnv() (Config, bool) {
 		return Config{}, false
 	}
 	return c, true
+}
+
+type bootstrapConfig struct {
+	Provider   string `json:"provider"`
+	Model      string `json:"model,omitempty"`
+	BaseURL    string `json:"base_url,omitempty"`
+	APIKeyFile string `json:"api_key_file"`
+}
+
+var runtimeSecretRoot = "/run/adverserial/current"
+
+// configFromBootstrap reads a guard-authored, non-secret provider document and
+// its separate key file. The measured runtime mounts this tree read-only. Key
+// bytes never enter Docker environment metadata or the ARTEX database.
+func configFromBootstrap(path string) (Config, error) {
+	document, err := readRuntimeSecret(path, 8192)
+	if err != nil {
+		return Config{}, err
+	}
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	decoder.DisallowUnknownFields()
+	var boot bootstrapConfig
+	if err := decoder.Decode(&boot); err != nil {
+		return Config{}, fmt.Errorf("invalid LLM bootstrap")
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		return Config{}, fmt.Errorf("invalid LLM bootstrap")
+	}
+	if boot.Provider != "anthropic" && boot.Provider != "openai" && boot.Provider != "openai-responses" {
+		return Config{}, fmt.Errorf("unsupported LLM bootstrap provider")
+	}
+	if boot.BaseURL != "" {
+		parsed, err := url.Parse(boot.BaseURL)
+		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return Config{}, fmt.Errorf("LLM bootstrap requires a verified HTTPS endpoint")
+		}
+	}
+	key, err := readRuntimeSecret(boot.APIKeyFile, 4096)
+	if err != nil {
+		return Config{}, err
+	}
+	apiKey := string(key)
+	if strings.TrimSpace(apiKey) != apiKey || len(apiKey) < 20 || len(apiKey) > 2048 || strings.IndexFunc(apiKey, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
+		return Config{}, fmt.Errorf("invalid runtime LLM credential")
+	}
+	return ConfigFrom(boot.Provider, boot.Model, boot.BaseURL, apiKey, ""), nil
+}
+
+func readRuntimeSecret(path string, maximum int64) ([]byte, error) {
+	root := runtimeSecretRoot
+	clean := filepath.Clean(path)
+	if !filepath.IsAbs(clean) || (clean != root && !strings.HasPrefix(clean, root+string(os.PathSeparator))) {
+		return nil, fmt.Errorf("runtime secret path rejected")
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, fmt.Errorf("runtime secret root unavailable")
+	}
+	resolved, err := filepath.EvalSymlinks(clean)
+	if err != nil || (resolved != resolvedRoot && !strings.HasPrefix(resolved, resolvedRoot+string(os.PathSeparator))) {
+		return nil, fmt.Errorf("runtime secret path rejected")
+	}
+	file, err := os.Open(resolved)
+	if err != nil {
+		return nil, fmt.Errorf("runtime secret unavailable")
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 || info.Size() <= 0 || info.Size() > maximum {
+		return nil, fmt.Errorf("runtime secret metadata rejected")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maximum+1))
+	if err != nil || int64(len(data)) > maximum {
+		return nil, fmt.Errorf("runtime secret read rejected")
+	}
+	return data, nil
 }
 
 // ConfigFrom builds a Config from UI-provided strings (provider defaults to
