@@ -15,6 +15,14 @@ services:
 
   artex:
     image: ghcr.io/lordx64/artex-plus-plus@sha256:05a7894200fd668c2211da3d57018de14861dea4688db4b1e4f7ebf107c96215
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       postgres:
         condition: service_healthy

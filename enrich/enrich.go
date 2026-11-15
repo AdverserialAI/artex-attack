@@ -16,11 +16,13 @@ package enrich
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"html"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -66,9 +68,10 @@ const (
 
 // New builds the engine. proxy() returns the recording-proxy address to route HTTP
 // probes through (so they land in the traffic store), evaluated per request so the
-// runtime traffic-capture toggle takes effect live; "" = direct. Returns a usable
-// engine even if the resolver fails to init (DNS becomes a no-op).
-func New(as *db.AssetStore, proxy func() string, workers int) *Engine {
+// runtime traffic-capture toggle takes effect live; "" = direct. caCert() returns
+// the recording proxy's CA bundle so HTTPS verification remains enabled through it.
+// Returns a usable engine even if the resolver fails to init (DNS becomes a no-op).
+func New(as *db.AssetStore, proxy, caCert func() string, workers int) *Engine {
 	if workers <= 0 {
 		workers = 4
 	}
@@ -85,7 +88,7 @@ func New(as *db.AssetStore, proxy func() string, workers int) *Engine {
 	e := &Engine{
 		as:     as,
 		resolv: resolv,
-		client: buildClient(proxy),
+		client: buildClient(proxy, caCert),
 		jobs:   make(chan job, queueSize),
 		closed: make(chan struct{}),
 	}
@@ -96,12 +99,30 @@ func New(as *db.AssetStore, proxy func() string, workers int) *Engine {
 }
 
 // buildClient returns an HTTP client that dials via the recording proxy (resolved
-// per-request via proxy(), so the traffic-capture toggle applies live) and skips
-// TLS verification (the proxy re-signs with its MITM CA; targets are often
-// self-signed — this is a pentest probe).
-func buildClient(proxy func() string) *http.Client {
+// per-request via proxy(), so the traffic-capture toggle applies live). TLS
+// verification stays enabled; the recording proxy is trusted only through its CA.
+func buildClient(proxy, caCert func() string) *http.Client {
+	tlsConfig := &tls.Config{}
+	if caCert != nil {
+		if path := caCert(); path != "" {
+			pem, err := os.ReadFile(path)
+			if err != nil {
+				log.Printf("[enrich] read recording proxy CA %q failed: %v", path, err)
+			} else {
+				pool, poolErr := x509.SystemCertPool()
+				if poolErr != nil || pool == nil {
+					pool = x509.NewCertPool()
+				}
+				if !pool.AppendCertsFromPEM(pem) {
+					log.Printf("[enrich] recording proxy CA %q contains no usable certificates", path)
+				} else {
+					tlsConfig.RootCAs = pool
+				}
+			}
+		}
+	}
 	tr := &http.Transport{
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:     tlsConfig,
 		DisableKeepAlives:   true,
 		TLSHandshakeTimeout: httpTimeout,
 	}

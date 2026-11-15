@@ -12,6 +12,10 @@
 FROM node:22-bookworm@sha256:e13726ca604184d7a91fcacab1fc09eefd642dc28e79ac34e85540dd93b78cfb AS node-runtime
 FROM python:3.12-slim-bookworm@sha256:935c3c5b12357a7e10caa9c1e6ca5692344d97cf229832ef584be2cec9fc03df
 ARG TARGETARCH
+ARG ARTEX_UID=10001 ARTEX_GID=10001
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN groupadd --gid ${ARTEX_GID} artex \
+    && useradd --uid ${ARTEX_UID} --gid ${ARTEX_GID} --home-dir /home/artex --create-home --shell /usr/sbin/nologin artex
 # Node is copied from the pinned official image instead of executing a remote setup script.
 COPY --from=node-runtime /usr/local/bin/ /usr/local/bin/
 COPY --from=node-runtime /usr/local/lib/node_modules/ /usr/local/lib/node_modules/
@@ -39,10 +43,15 @@ COPY start.sh /app/start.sh
 COPY scripts/artex-config.sh scripts/upgrade-review-flow-prompts.sql /app/scripts/
 RUN chmod +x /app/artex /app/start.sh
 COPY skills/ /app/skills/
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # JWT 签名密钥落到持久化数据卷，容器重建后旧登录 token 仍有效。
-RUN ln -sf /app/data/jwt.key /app/jwt.key
+RUN ln -sf /app/data/jwt.key /app/jwt.key \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh \
+    && mkdir -p /app/data /home/artex \
+    && chown -R ${ARTEX_UID}:${ARTEX_GID} /app/data /app/skills /home/artex \
+    && chmod -R a+rX /app /opt/playwright
 # data/（SQLite + jwt.key）持久化点
 VOLUME ["/app/data"]
 EXPOSE 8787 8788
-ENTRYPOINT ["/app/start.sh"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["-addr", ":8787", "-proxy", ":8788"]

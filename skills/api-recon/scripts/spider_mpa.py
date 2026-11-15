@@ -13,12 +13,18 @@ the same origin and extracts:
   - api_inline.txt : url-ish strings found in inline <script> / onclick (fetch/ajax)
 
 Stdlib only. Same-origin, bounded, polite. Provide --cookie for an authed crawl.
+TLS verification is enabled by default. ARTEX_RECON_CA_CERT may point to a private
+CA bundle. ARTEX_RECON_INSECURE_TLS=1 disables verification and must only be used
+for explicitly authorized, isolated targets.
 """
 import sys, os, re, ssl, argparse, urllib.request, urllib.parse, time
 from html.parser import HTMLParser
 from collections import deque
 
-CTX = ssl.create_default_context(); CTX.check_hostname = False; CTX.verify_mode = ssl.CERT_NONE
+if os.environ.get("ARTEX_RECON_INSECURE_TLS") == "1":
+    CTX = ssl._create_unverified_context()
+else:
+    CTX = ssl.create_default_context(cafile=os.environ.get("ARTEX_RECON_CA_CERT") or None)
 UA = "Mozilla/5.0 (spa-api-recon spider)"
 SKIP_EXT = re.compile(r'\.(css|png|jpe?g|gif|svg|ico|woff2?|ttf|pdf|zip|mp4|webp|js)(\?|$)', re.I)
 API_HINT = re.compile(r'/(?:api|rest|service|ajax|action|do|rpc|graphql|v\d|admin|backend)\b', re.I)

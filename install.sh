@@ -19,7 +19,12 @@ ensure_docker(){
   case "$(uname -s)" in
     Linux)
       if [ "$(ask '自动安装 Docker? (y/n)' y)" = y ]; then
-        curl -fsSL https://get.docker.com | sh
+        if command -v apt-get >/dev/null 2>&1; then
+          sudo apt-get update
+          sudo apt-get install -y docker.io docker-compose-v2
+        else
+          die "请按官方文档安装 Docker 与 Compose：https://docs.docker.com/engine/install/"
+        fi
         sudo usermod -aG docker "$USER" || true
         ok "Docker 安装完成（用户组变更需重新登录后免 sudo）"
       else

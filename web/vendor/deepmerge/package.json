@@ -1,0 +1,9 @@
+{
+  "name": "deepmerge",
+  "version": "4.3.2",
+  "description": "ARTEX security-patched deep merge with explicit prototype-pollution rejection",
+  "main": "dist/cjs.js",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "private": true
+}

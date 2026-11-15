@@ -41,7 +41,7 @@ chmod +x deploy.sh && ./deploy.sh
 git clone https://github.com/IcebergN2026/artex-ld.git
 cd artex-ld
 chmod +x build.sh
-./build.sh        # 需要 Go 1.26+、Node.js 20+
+./build.sh        # 需要 Go 1.26.11+、Node.js 22+
 export ARTEX_PG_DSN='postgres://artex:密码@127.0.0.1:5432/artex?sslmode=disable'
 ./dist/artex-linux-amd64/artex
 ```

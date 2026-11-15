@@ -29,10 +29,12 @@
  *   "proxy": "http://127.0.0.1:8080",           // optional; also HTTP_PROXY / HTTPS_PROXY
  *   "waitUntil": "domcontentloaded",            // prefer over networkidle2 for large SPAs
  *   "routeTimeout": 12000,
- *   "waitMs": 1200, "perRouteMs": 900, "headless": true
+ *   "waitMs": 1200, "perRouteMs": 900, "headless": true,
+ *   "caCert": "/path/to/private-ca.pem",          // optional private CA bundle
+ *   "insecureTLS": false,                         // explicit opt-in for isolated targets only
+ *   "allowNoSandbox": false                       // explicit opt-in; never required as non-root
  * }
  */
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const path = require('path');
 
@@ -56,6 +58,9 @@ function loadCfg(p) {
   c.captureResponses = c.captureResponses !== false; // record response body samples (forward mode)
   c.recordWs = c.recordWs !== false;                 // record WebSocket frames + SSE endpoints
   c.respMax = c.respMax || 600;                       // truncation length for captured bodies
+  c.insecureTLS = c.insecureTLS === true;
+  c.allowNoSandbox = c.allowNoSandbox === true;
+  c.caCert = c.caCert || '';
   c.proxy = c.proxy || process.env.HTTP_PROXY || process.env.HTTPS_PROXY || '';
   (c.stubs || []).forEach(s => s._re = new RegExp(s.match));
   return c;
@@ -94,7 +99,14 @@ function neutralize(txt, n) {
     process.env.HTTP_PROXY = cfg.proxy;
     process.env.HTTPS_PROXY = cfg.proxy;
   }
-  const launchArgs = ['--no-sandbox', '--disable-dev-shm-usage', '--ignore-certificate-errors'];
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = cfg.insecureTLS ? '0' : '1';
+  if (cfg.caCert) process.env.NODE_EXTRA_CA_CERTS = path.resolve(cfg.caCert);
+  if (typeof process.getuid === 'function' && process.getuid() === 0 && !cfg.allowNoSandbox) {
+    throw new Error('Refusing to launch Chromium as root with the sandbox enabled. Run as a non-root user, or explicitly set allowNoSandbox=true for an isolated target.');
+  }
+  const launchArgs = ['--disable-dev-shm-usage'];
+  if (cfg.allowNoSandbox) launchArgs.push('--no-sandbox');
+  if (cfg.insecureTLS) launchArgs.push('--ignore-certificate-errors');
   if (cfg.proxy) launchArgs.push(`--proxy-server=${cfg.proxy}`);
   const browser = await puppeteer.launch({
     executablePath: cfg.chromium, headless: cfg.headless ? 'new' : false,

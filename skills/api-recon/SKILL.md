@@ -300,6 +300,8 @@ cd recon && npm install
 node runtime_harvest.js config.json
 ```
 
+**TLS / sandbox defaults**：证书校验与 Chromium sandbox 默认开启。私有 CA 在 `config.json` 中设置 `caCert`；Python 脚本使用 `ARTEX_RECON_CA_CERT`。仅在明确授权且隔离的目标上，才可设置 `insecureTLS: true`、`allowNoSandbox: true`（JS）或 `ARTEX_RECON_INSECURE_TLS=1`（Python）。以 root 运行且未显式设置 `allowNoSandbox` 时，脚本会拒绝启动浏览器。
+
 ### 3b — coverage 动态枚举（必做）
 
 1. 主导航/侧栏 — 每项点击，等网络 1–3s

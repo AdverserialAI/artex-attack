@@ -300,7 +300,7 @@ grep -rhoaE '/api/[a-zA-Z0-9_./-]+' js | sort -u
 2. **阅读** `scripts/harvest_static.py` → 按目标调整 → 运行 → 审 `api_static.txt`、`routes.txt`
 3. **Phase 1b**：path 锚点扩窗 + 绑定层 → `param_candidates.json`（J 节）
 4. 逆向 A1/A2/A3 → 写站点专属 `config.json`
-5. **阅读并调整** `runtime_harvest.js` / `preload.js` 后再执行
+5. **阅读并调整** `runtime_harvest.js` / `preload.js` 后再执行。默认启用 TLS 校验与 Chromium sandbox；私有 CA 用 `caCert` / `ARTEX_RECON_CA_CERT`，仅在隔离目标上用 `insecureTLS` / `ARTEX_RECON_INSECURE_TLS` 显式关闭校验。root 下默认拒绝启动浏览器，`allowNoSandbox` 只能作为隔离环境的显式例外。
 6. `runtimeMode=depth`：`npm install` → 运行调整后的 harvest 脚本
 7. `runtimeMode=coverage/both`：document-start 注入调整后的 preload → browser MCP 动态枚举 + **参数触发矩阵**
 8. 模块不渲染 → **I 节权限树还原** → patch stubs → 重跑

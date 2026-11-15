@@ -491,7 +491,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 			log.Printf("[proxy] 全局代理 %q 无效，已忽略: %v", m.globalProxy, err)
 		}
 	}
-	m.enrich = enrich.New(m.assets, m.ProxyAddr, 4)
+	m.enrich = enrich.New(m.assets, m.ProxyAddr, m.ProxyCACert, 4)
 	// Reconcile the seeded browser MCP with the persisted capture state, so a
 	// restart with capture already on keeps Playwright routed through the proxy.
 	m.syncBrowserMCPProxy()
