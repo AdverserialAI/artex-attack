@@ -153,15 +153,32 @@ func compactionConfig(windowTokens int) *compaction.Config {
 //	ARTEX_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
 //	ANTHROPIC_API_KEY / OPENAI_API_KEY         = credentials
 func FromEnv() (Config, bool) {
-	if bootstrap := strings.TrimSpace(os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE")); bootstrap != "" {
-		cfg, err := configFromBootstrap(bootstrap)
-		if err != nil {
-			// Fail closed. A configured measured-runtime bootstrap must never
-			// fall back to process environment credentials.
-			return Config{}, false
-		}
-		return cfg, true
+	configs, ok := ConfigsFromEnv()
+	if !ok || len(configs) == 0 {
+		return Config{}, false
 	}
+	return configs[0], true
+}
+
+// ConfigsFromEnv returns the strict measured-runtime provider chain, or the
+// ordinary single environment provider outside the SaaS runtime. A configured
+// bootstrap always fails closed and never falls back to process environment.
+func ConfigsFromEnv() ([]Config, bool) {
+	if bootstrap := strings.TrimSpace(os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE")); bootstrap != "" {
+		configs, err := configsFromBootstrap(bootstrap)
+		if err != nil {
+			return nil, false
+		}
+		return configs, true
+	}
+	cfg, ok := configFromEnvironment()
+	if !ok {
+		return nil, false
+	}
+	return []Config{cfg}, true
+}
+
+func configFromEnvironment() (Config, bool) {
 	prov := os.Getenv("ARTEX_LLM_PROVIDER")
 	anthKey := os.Getenv("ANTHROPIC_API_KEY")
 	oaiKey := os.Getenv("OPENAI_API_KEY")
@@ -217,43 +234,72 @@ type bootstrapConfig struct {
 	APIKeyFile string `json:"api_key_file"`
 }
 
+type bootstrapDocument struct {
+	Version   int               `json:"version"`
+	Providers []bootstrapConfig `json:"providers"`
+}
+
 var runtimeSecretRoot = "/run/adverserial/current"
 
-// configFromBootstrap reads a guard-authored, non-secret provider document and
-// its separate key file. The measured runtime mounts this tree read-only. Key
-// bytes never enter Docker environment metadata or the ARTEX database.
-func configFromBootstrap(path string) (Config, error) {
+const runtimeBootstrapProxy = "http://llm-egress-proxy:8080"
+
+// configsFromBootstrap reads a guard-authored provider chain and its separate
+// key files. The measured runtime mounts this tree read-only. Key bytes never
+// enter Docker environment metadata or the ARTEX database.
+func configsFromBootstrap(path string) ([]Config, error) {
 	document, err := readRuntimeSecret(path, 8192)
 	if err != nil {
-		return Config{}, err
+		return nil, err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(document))
 	decoder.DisallowUnknownFields()
-	var boot bootstrapConfig
-	if err := decoder.Decode(&boot); err != nil {
-		return Config{}, fmt.Errorf("invalid LLM bootstrap")
+	var boot bootstrapDocument
+	if err := decoder.Decode(&boot); err != nil || boot.Version != 1 || len(boot.Providers) == 0 || len(boot.Providers) > 2 {
+		return nil, fmt.Errorf("invalid LLM bootstrap")
 	}
 	if decoder.Decode(&struct{}{}) != io.EOF {
-		return Config{}, fmt.Errorf("invalid LLM bootstrap")
+		return nil, fmt.Errorf("invalid LLM bootstrap")
 	}
-	if boot.Provider != "anthropic" && boot.Provider != "openai" && boot.Provider != "openai-responses" {
-		return Config{}, fmt.Errorf("unsupported LLM bootstrap provider")
-	}
-	if boot.BaseURL != "" {
-		parsed, err := url.Parse(boot.BaseURL)
-		if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-			return Config{}, fmt.Errorf("LLM bootstrap requires a verified HTTPS endpoint")
+	configs := make([]Config, 0, len(boot.Providers))
+	seen := make(map[string]bool, len(boot.Providers))
+	for _, provider := range boot.Providers {
+		if provider.Provider != "anthropic" && provider.Provider != "openai" && provider.Provider != "openai-responses" {
+			return nil, fmt.Errorf("unsupported LLM bootstrap provider")
 		}
+		if seen[provider.Provider] {
+			return nil, fmt.Errorf("duplicate LLM bootstrap provider")
+		}
+		seen[provider.Provider] = true
+		if provider.BaseURL != "" {
+			parsed, err := url.Parse(provider.BaseURL)
+			if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+				return nil, fmt.Errorf("LLM bootstrap requires a verified HTTPS endpoint")
+			}
+			expectedHost := "api.anthropic.com"
+			if provider.Provider == "openai" || provider.Provider == "openai-responses" {
+				expectedHost = "api.openai.com"
+				if provider.Model == "adverserial/cyberseek" {
+					expectedHost = "api.adverserial.ai"
+				}
+			}
+			if parsed.Hostname() != expectedHost || (parsed.Port() != "" && parsed.Port() != "443") {
+				return nil, fmt.Errorf("LLM bootstrap endpoint is not approved for provider")
+			}
+		}
+		key, err := readRuntimeSecret(provider.APIKeyFile, 4096)
+		if err != nil {
+			return nil, err
+		}
+		apiKey := string(key)
+		if strings.TrimSpace(apiKey) != apiKey || len(apiKey) < 20 || len(apiKey) > 2048 || strings.IndexFunc(apiKey, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
+			return nil, fmt.Errorf("invalid runtime LLM credential")
+		}
+		configs = append(configs, ConfigFrom(provider.Provider, provider.Model, provider.BaseURL, apiKey, runtimeBootstrapProxy))
 	}
-	key, err := readRuntimeSecret(boot.APIKeyFile, 4096)
-	if err != nil {
-		return Config{}, err
-	}
-	apiKey := string(key)
-	if strings.TrimSpace(apiKey) != apiKey || len(apiKey) < 20 || len(apiKey) > 2048 || strings.IndexFunc(apiKey, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
-		return Config{}, fmt.Errorf("invalid runtime LLM credential")
-	}
-	return ConfigFrom(boot.Provider, boot.Model, boot.BaseURL, apiKey, ""), nil
+	// The measured SaaS runtime keeps ARTEX off every Internet-routed Docker
+	// network. Model traffic can leave only through the sibling CONNECT proxy,
+	// whose destination allowlist is part of the attested Compose measurement.
+	return configs, nil
 }
 
 func readRuntimeSecret(path string, maximum int64) ([]byte, error) {

@@ -18,16 +18,54 @@ func TestConfigFromBootstrapReadsPrivateKeyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := filepath.Join(root, "artex-llm.json")
-	document := `{"provider":"openai","model":"adverserial/cyberseek","base_url":"https://api.adverserial.ai/v1","api_key_file":"` + key + `"}`
+	document := `{"version":1,"providers":[{"provider":"openai","model":"adverserial/cyberseek","base_url":"https://api.adverserial.ai/v1","api_key_file":"` + key + `"}]}`
 	if err := os.WriteFile(config, []byte(document), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := configFromBootstrap(config)
+	configs, err := configsFromBootstrap(config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Format != llm.FormatOpenAI || cfg.Model != "adverserial/cyberseek" || cfg.APIKey == "" {
+	if len(configs) != 1 {
+		t.Fatalf("bootstrap config count = %d", len(configs))
+	}
+	cfg := configs[0]
+	if cfg.Format != llm.FormatOpenAI || cfg.Model != "adverserial/cyberseek" || cfg.APIKey == "" || cfg.Proxy != runtimeBootstrapProxy {
 		t.Fatalf("unexpected bootstrap config: %#v", cfg)
+	}
+}
+
+func TestConfigsFromBootstrapKeepsBothProviderKeysOutOfDatabase(t *testing.T) {
+	root := t.TempDir()
+	old := runtimeSecretRoot
+	runtimeSecretRoot = root
+	t.Cleanup(func() { runtimeSecretRoot = old })
+	anthropic := filepath.Join(root, "anthropic-api-key")
+	openai := filepath.Join(root, "openai-api-key")
+	for path, value := range map[string]string{
+		anthropic: "ant-abcdefghijklmnopqrstuvwxyz1234567890",
+		openai:    "sk-abcdefghijklmnopqrstuvwxyz1234567890",
+	} {
+		if err := os.WriteFile(path, []byte(value), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	config := filepath.Join(root, "artex-llm.json")
+	document := `{"version":1,"providers":[{"provider":"anthropic","api_key_file":"` + anthropic + `"},{"provider":"openai","api_key_file":"` + openai + `"}]}`
+	if err := os.WriteFile(config, []byte(document), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configs, err := configsFromBootstrap(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(configs) != 2 || configs[0].Format != llm.FormatAnthropic || configs[1].Format != llm.FormatOpenAI {
+		t.Fatalf("unexpected bootstrap chain: %#v", configs)
+	}
+	for _, cfg := range configs {
+		if cfg.APIKey == "" || cfg.Proxy != runtimeBootstrapProxy {
+			t.Fatalf("unsafe bootstrap config: %#v", cfg)
+		}
 	}
 }
 
@@ -41,17 +79,19 @@ func TestConfigFromBootstrapRejectsEscapesBroadModesAndHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, document := range map[string]string{
-		"escape":   `{"provider":"openai","api_key_file":"` + outside + `"}`,
-		"http":     `{"provider":"openai","base_url":"http://example.test/v1","api_key_file":"` + outside + `"}`,
-		"query":    `{"provider":"openai","base_url":"https://example.test/v1?token=leak","api_key_file":"` + outside + `"}`,
-		"fragment": `{"provider":"openai","base_url":"https://example.test/v1#fragment","api_key_file":"` + outside + `"}`,
-		"unknown":  `{"provider":"openai","api_key_file":"` + outside + `","secret":"value"}`,
+		"escape":     `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `"}]}`,
+		"http":       `{"version":1,"providers":[{"provider":"openai","base_url":"http://example.test/v1","api_key_file":"` + outside + `"}]}`,
+		"query":      `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1?token=leak","api_key_file":"` + outside + `"}]}`,
+		"fragment":   `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1#fragment","api_key_file":"` + outside + `"}]}`,
+		"wrong-host": `{"version":1,"providers":[{"provider":"openai","base_url":"https://example.test/v1","api_key_file":"` + outside + `"}]}`,
+		"unknown":    `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `","secret":"value"}]}`,
+		"duplicate":  `{"version":1,"providers":[{"provider":"openai","api_key_file":"` + outside + `"},{"provider":"openai","api_key_file":"` + outside + `"}]}`,
 	} {
 		config := filepath.Join(root, name+".json")
 		if err := os.WriteFile(config, []byte(document), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := configFromBootstrap(config); err == nil {
+		if _, err := configsFromBootstrap(config); err == nil {
 			t.Fatalf("%s bootstrap should be rejected", name)
 		}
 	}
