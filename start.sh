@@ -30,18 +30,8 @@
 #   或容器内 apt-get install -y postgresql-client 后再用。
 #   ⚠ 导出物含 API Key / Webhook 密钥明文，目录已 chmod 700，传输后妥善保管。
 #
-# ── 守护逻辑说明 ─────────────────────────────────────────────────────
-# 默认模式只做一件事：把 artex 跑起来，进程退出后按退出码决定要不要再拉起。
-#
-#   0      用户正常停止        → 退出循环
-#   75     程序请求重启        → 立刻重跑（页面点了"一键更新"或"回滚"）
-#   其他   崩溃                → 退避后重跑（1→2→4…最多 60 秒）
-#
-# 刻意不在守护路径里做下载、SHA256 校验或换装：那些逻辑在 sh 和 bat 上要写两套，
-# 而它们恰恰是最不能出错的一环——一旦换上跑不起来的二进制，本脚本会忠实地
-# 反复拉起它，用户只能上机器手工救。所以校验/换装全部留在 Go 里（selfupdate 包），
-# 由 artex 自己在启动时完成，脚本保持傻瓜化。
-# （配置迁移子命令在进守护循环之前就分流退出，不影响上面的可靠性约束。）
+# Supervisor: exit 0 stops; unexpected exits restart with exponential backoff.
+# Application updates require redeployment; no update or binary-swap protocol runs here.
 set -u
 
 cd "$(dirname "$0")" || exit 1
@@ -65,7 +55,6 @@ esac
 BIN=./artex
 [ -x "$BIN" ] || { echo "[artex] Executable not found: $BIN" >&2; exit 1; }
 
-RESTART_CODE=75
 MAX_DELAY=60
 
 child=0
@@ -108,11 +97,6 @@ while :; do
 		0)
 			echo "[artex] Exited normally"
 			exit 0
-			;;
-		"$RESTART_CODE")
-			# 更新/回滚已就绪：重跑后 artex 会在启动时完成换装（见 selfupdate.Bootstrap）。
-			echo "[artex] Restart requested (applying new version)…"
-			delay=1
 			;;
 		*)
 			echo "[artex] Unexpected exit (code=$code)，${delay}s till restart" >&2
