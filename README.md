@@ -84,6 +84,7 @@ Some scenario capabilities depend on the following MCP servers. Install them as 
 | Migration between environments | [Environment migration](docs/ARTEX-换环境迁移方案.md) |
 | End-to-end implementation reference | [Implementation reference](docs/ARTEX-二开-全流程代码链文档.md) |
 | Release history | [Changelog](CHANGELOG.md) |
+| Confidential SaaS model-provider bootstrap | [Confidential SaaS LLM](docs/CONFIDENTIAL-SaaS-LLM.md) |
 
 ## Follow LDsec
 
