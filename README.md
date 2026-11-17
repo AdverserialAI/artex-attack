@@ -1,94 +1,96 @@
----
-
 # artex-ld
 
-当前版本：**0.1.5**；Release 名称：**artex-ld 0.1.5**；Git Tag：**v0.1.5**。
+Current version: **0.1.5** · Release: **artex-ld 0.1.5** · Git tag: **v0.1.5**.
 
-基于 [ARTEX](https://github.com/autumn27/artex) v0.3.15+ 的二次开发版本：AI 自主渗透测试平台。
-在原有「planner-worker 自主推进」基础上，新增四个可控点：**场景可配**（任务分类/模板/种子意图）、**意图可审**（AI 预审 + 人工批准/驳回）、**执行者可指定**（自定义 agent 执行意图）、**finding 可编排**（触发器自动派生子任务/写报告/复测）。所有增强默认关闭，不使用则行为与原版一致。
+An autonomous AI penetration testing platform derived from [ARTEX](https://github.com/autumn27/artex) v0.3.15+.
 
-> ⚠️ 仅限合法授权、自有系统与隔离靶场。审核、拦截和人工确认只是辅助控制，不能替代授权边界、目标隔离与操作者判断。
+This fork extends the planner/worker workflow with four controls: **configurable scenarios** (task categories, templates, and seed intents), **reviewable intents** (AI pre-screening and human approval/rejection), **selectable executors** (custom agents), and **finding orchestration** (triggers for subtasks, reports, and retests). Enhancements are disabled by default; when unused, the upstream behavior is retained.
 
-## 快速开始
+> Use only with legal authorization, systems you own, or isolated test environments. Review, interception, and human confirmation assist operators; they do not replace authorization boundaries, target isolation, or operator judgment.
 
-### 方式一：Release 部署包（推荐，自带 PostgreSQL 自动初始化）
+## Quick start
+
+### Option 1: Release deployment package
+
+The deployment package includes automatic PostgreSQL initialization.
 
 ```bash
-# 1. 新建目录并下载 Release 部署包
+# 1. Create a directory and download the package.
 mkdir artex && cd artex
 wget https://github.com/IcebergN2026/artex-ld/releases/download/0.1.5/artex-0.1.5-linux-amd64.deploy.tar.gz
 
-# 2. 解压并一键安装（自动注册 systemd 服务、初始化数据库）
+# 2. Extract and install.
 tar xzf artex-0.1.5-linux-amd64.deploy.tar.gz
 chmod +x install.sh
 sudo bash install.sh --server artex-0.1.5-linux-amd64.deploy.tar.gz
 ```
 
-### 方式二：Docker Compose（从源码构建）
+The installer installs files and initializes the database. It does not create or manage an autostart service. Start the application with `/opt/artex/start.sh`, or configure your own service. For an upgrade, stop the old application process before starting the new version.
+
+### Option 2: Docker Compose from source
 
 ```bash
 git clone https://github.com/IcebergN2026/artex-ld.git
 cd artex-ld
 chmod +x deploy.sh && ./deploy.sh
-# 已有镜像无需重新构建时：./deploy.sh --no-build
+# Reuse an existing image without rebuilding:
+# ./deploy.sh --no-build
 ```
 
-首次运行自动生成权限 `0600` 的 `.env`（含随机 PostgreSQL 密码），已有 `.env` 不会被覆盖。
+The first run creates `.env` with permissions `0600` and a random PostgreSQL password. An existing `.env` is preserved.
 
-### 方式三：源码构建
+### Option 3: Build from source
 
 ```bash
 git clone https://github.com/IcebergN2026/artex-ld.git
 cd artex-ld
 chmod +x build.sh
-./build.sh        # 需要 Go 1.26.11+、Node.js 22+
-export ARTEX_PG_DSN='postgres://artex:密码@127.0.0.1:5432/artex?sslmode=disable'
+./build.sh  # Requires Go 1.26.11+ and Node.js 22+.
+export ARTEX_PG_DSN='postgres://artex:YOUR_PASSWORD@127.0.0.1:5432/artex?sslmode=disable'
 ./dist/artex-linux-amd64/artex
 ```
 
-### 装后管理
+## Administration
 
-| 事项                | 命令                                                  |
-| ----------------- | --------------------------------------------------- |
-| 启动/停止（二进制安装）      | `cd /opt/artex && ./start.sh`                       |
-| 升级（Docker）        | `./update.sh`                                       |
-| 升级（二进制）           | 重跑 `install.sh --server <新包>`（自动备份数据库与旧二进制）         |
-| 忘记管理员密码           | `./reset-password.sh`                               |
+| Action | Command |
+| --- | --- |
+| Start the binary installation | `cd /opt/artex && ./start.sh` |
+| Update Docker deployment | `./update.sh` |
+| Update a binary installation | Run `install.sh --server <new-package>` again; it backs up the database and old binary |
+| Reset the administrator password | `./reset-password.sh` |
 
-### 首次使用
+## First use
 
-1. 浏览器访问 `http://<服务器IP>:8787/setup`，设置管理员密码。
-2. 在 **系统 → LLM** 配置模型（Anthropic / OpenAI / 兼容 OpenAI 的私有网关均可）。
-3. **任务 → 新建任务**：选择场景分类与 planner 模板，填写目标开跑。
+1. Open `http://<server-IP>:8787/setup` and set the administrator password.
+2. Configure your model in **System → LLM**. Anthropic, OpenAI, and OpenAI-compatible private gateways are supported.
+3. Open **Tasks → New task**, select a scenario category and planner template, enter the target and goal, and create the task.
 
-### 配套 MCP（可选增强）
+## Optional MCP integrations
 
-场景预设中的部分能力依赖以下 MCP，按需安装后在 **系统 → MCP** 配置并授权可见：
+Some scenario capabilities depend on the following MCP servers. Install them as needed, then configure them and grant agent visibility in **System → MCP**.
 
-| MCP | 用途 | GitHub | 安装 / 启动 |
-|---|---|---|---|
-| **GodzillaSuper** | webshell 管理 + 立足点实连验证（`shell_list` / `shell_test`），trace_cleaner 依赖 | [Xaaaa-bip/GodzillaSuper](https://github.com/Xaaaa-bip/GodzillaSuper) | 需 Java 17+，从其 Releases 下载 `gsl5.jar`：`java -jar gsl5.jar mcp 9123 127.0.0.1`，SSE 地址 `http://127.0.0.1:9123/sse` |
-| **Playwright MCP** | 浏览器操作（资产探测、截图取证） | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | `npx @playwright/mcp --headless` |
-| **ScopeSentry** | 资产测绘同步 | [DoubleShark/ScopeSentry](https://github.com/DoubleShark/ScopeSentry) | 见其 README（Docker 部署），HTTP 方式接入，API Key 在 ScopeSentry 侧生成 |
+| MCP | Purpose | Project | Installation / startup |
+| --- | --- | --- | --- |
+| **GodzillaSuper** | Webshell management and real foothold connection checks (`shell_list` / `shell_test`); used by trace cleanup | [Xaaaa-bip/GodzillaSuper](https://github.com/Xaaaa-bip/GodzillaSuper) | Java 17+. Download `gsl5.jar` from its releases, then run `java -jar gsl5.jar mcp 9123 127.0.0.1`. SSE URL: `http://127.0.0.1:9123/sse` |
+| **Playwright MCP** | Browser operations, asset discovery, and screenshots as evidence | [microsoft/playwright-mcp](https://github.com/microsoft/playwright-mcp) | `npx @playwright/mcp --headless` |
+| **ScopeSentry** | Asset discovery synchronization | [DoubleShark/ScopeSentry](https://github.com/DoubleShark/ScopeSentry) | Follow its README for Docker deployment. Connect over HTTP using an API key generated in ScopeSentry |
 
-## 文档
+## Documentation
 
-| 内容                    | 链接                                                     |
-| --------------------- | ------------------------------------------------------ |
-| 功能详解（agent/工具/审核流/案例） | [docs/ARTEX-功能详解.md](docs/ARTEX-功能详解.md)               |
-| 部署手册（依赖/离线构建/升级/反代）   | [docs/ARTEX-部署手册.md](docs/ARTEX-部署手册.md)               |
-| 换环境迁移方案               | [docs/ARTEX-换环境迁移方案.md](docs/ARTEX-换环境迁移方案.md)         |
-| 全流程代码链                | [docs/ARTEX-二开-全流程代码链文档.md](docs/ARTEX-二开-全流程代码链文档.md) |
-| 更新日志                  | [CHANGELOG.md](CHANGELOG.md)                           |
+| Document | Link |
+| --- | --- |
+| Feature guide: agents, tools, review workflow, and examples | [Feature guide](docs/ARTEX-二开功能详解.md) |
+| Dependencies, offline builds, upgrades, and reverse proxies | [Deployment manual](docs/ARTEX-部署手册.md) |
+| Migration between environments | [Environment migration](docs/ARTEX-换环境迁移方案.md) |
+| End-to-end implementation reference | [Implementation reference](docs/ARTEX-二开-全流程代码链文档.md) |
+| Release history | [Changelog](CHANGELOG.md) |
 
-## 关注我们
+## Follow LDsec
 
-**公众号：凌度安全(LDsec)**
+Follow **LDsec** on WeChat for version updates, case studies, and usage tips.
 
-微信扫码关注，获取版本更新、实战案例与使用技巧：
+![LDsec WeChat QR code](docs/images/wechat-qrcode.jpg)
 
-![](docs/images/wechat-qrcode.jpg)
+## License
 
-## 许可
-
-[AGPL v3](LICENSE)，遵循上游许可。二次开发组件与上游第三方组件的版权及许可义务不因修改而消失。
+[AGPL v3](LICENSE), following the upstream license. Modifications do not remove the copyright or licensing obligations of upstream or third-party components.

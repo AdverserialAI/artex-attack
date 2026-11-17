@@ -61,7 +61,7 @@ func Bootstrap() (Action, State) {
 	}
 	p, err := ResolvePaths()
 	if err != nil {
-		log.Printf("[update] 跳过自举：%v", err)
+		log.Printf("[update] skipping bootstrap: %v", err)
 		return Continue, State{}
 	}
 
@@ -85,17 +85,17 @@ func applyStaged(p Paths) (Action, State) {
 	m, _ := readMarker(p.Marker)
 
 	if err := verifyStaged(p); err != nil {
-		log.Printf("[update] 暂存的新版本未通过校验，已丢弃，继续运行当前版本：%v", err)
+		log.Printf("[update] staged version failed validation and was discarded; continuing current version: %v", err)
 		cleanStaged(p)
 		_ = os.Remove(p.Marker)
-		return Continue, State{FailedStage: true, Detail: "新版本校验失败，已丢弃：" + err.Error()}
+		return Continue, State{FailedStage: true, Detail: "New version failed validation and was discarded: " + err.Error()}
 	}
 
 	if err := swap(p); err != nil {
-		log.Printf("[update] 换装失败，继续运行当前版本：%v", err)
+		log.Printf("[update] replacement failed; continuing current version: %v", err)
 		cleanStaged(p)
 		_ = os.Remove(p.Marker)
-		return Continue, State{FailedStage: true, Detail: "换装失败：" + err.Error()}
+		return Continue, State{FailedStage: true, Detail: "Replacement failed: " + err.Error()}
 	}
 
 	// 换装成功。保留标记，交给下一次启动（跑的就是新版）确认是否稳定。
@@ -104,9 +104,9 @@ func applyStaged(p Paths) (Action, State) {
 		m.StagedAt = time.Now().Unix()
 	}
 	if err := writeMarker(p.Marker, m); err != nil {
-		log.Printf("[update] 写升级标记失败（失去自动回滚能力）：%v", err)
+		log.Printf("[update] failed to write upgrade marker (automatic rollback unavailable): %v", err)
 	}
-	log.Printf("[update] 已换装到 %s，退出以重启（exit %d）", orUnknown(m.To), ExitRestart)
+	log.Printf("[update] replaced executable with %s; exiting to restart (exit %d)", orUnknown(m.To), ExitRestart)
 	return Restart, State{Pending: true}
 }
 
@@ -121,19 +121,19 @@ func confirmOrRollback(p Paths, m marker) (Action, State) {
 		if err := rollback(p); err != nil {
 			// 回滚都失败了就别再重启了，否则会陷入无限重启。清掉标记，
 			// 让进程按当前状态起——起不来的话用户至少能在日志里看到原因。
-			log.Printf("[update] 新版本连续 %d 次启动失败，且回滚失败：%v", maxAttempts, err)
+			log.Printf("[update] new version failed to start %d consecutive times and rollback failed: %v", maxAttempts, err)
 			_ = os.Remove(p.Marker)
-			return Continue, State{Detail: "新版本启动失败且回滚失败：" + err.Error()}
+			return Continue, State{Detail: "New version failed to start and rollback failed: " + err.Error()}
 		}
-		log.Printf("[update] 新版本连续 %d 次启动失败，已回滚到 %s，退出以重启（exit %d）",
+		log.Printf("[update] new version failed to start %d consecutive times; rolled back to %s and exiting to restart (exit %d)",
 			maxAttempts, orUnknown(m.From), ExitRestart)
 		_ = os.Remove(p.Marker)
-		return Restart, State{RolledBack: true, Detail: fmt.Sprintf("新版本启动失败，已回滚到 %s", orUnknown(m.From))}
+		return Restart, State{RolledBack: true, Detail: fmt.Sprintf("New version failed to start; rolled back to %s", orUnknown(m.From))}
 	}
 	if err := writeMarker(p.Marker, m); err != nil {
-		log.Printf("[update] 更新升级标记失败：%v", err)
+		log.Printf("[update] failed to update upgrade marker: %v", err)
 	}
-	log.Printf("[update] 新版本启动中（第 %d/%d 次尝试），稳定运行后将确认升级",
+	log.Printf("[update] new version starting (attempt %d/%d); upgrade will be confirmed after stable operation",
 		m.Attempts, maxAttempts)
 	return Continue, State{Pending: true}
 }
@@ -155,10 +155,10 @@ func settle(p Paths) {
 		return // 不是升级后的启动，无事可做
 	}
 	if err := os.Remove(p.Marker); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("[update] 清除升级标记失败：%v", err)
+		log.Printf("[update] failed to clear upgrade marker: %v", err)
 		return
 	}
-	log.Printf("[update] 新版本运行稳定，升级完成（上一版本保留为 %s）", p.Old)
+	log.Printf("[update] new version is stable; upgrade complete (previous version retained as %s)", p.Old)
 }
 
 // SettleDelay 是判定"新版本活下来了"所需的运行时长。
@@ -168,14 +168,14 @@ const SettleDelay = 30 * time.Second
 func verifyStaged(p Paths) error {
 	want, err := os.ReadFile(p.Sum)
 	if err != nil {
-		return fmt.Errorf("读取校验和: %w", err)
+		return fmt.Errorf("Read checksum: %w", err)
 	}
 	got, err := fileSHA256(p.New)
 	if err != nil {
-		return fmt.Errorf("计算校验和: %w", err)
+		return fmt.Errorf("Compute checksum: %w", err)
 	}
 	if !strings.EqualFold(strings.TrimSpace(string(want)), got) {
-		return errors.New("SHA256 不匹配（下载损坏或被篡改）")
+		return errors.New("SHA256 mismatch (download corrupted or tampered with)")
 	}
 	return smokeTest(p.New)
 }
@@ -184,7 +184,7 @@ func verifyStaged(p Paths) error {
 // 这能挡掉下载截断、架构选错（exec format error）、缺依赖等一大类问题。
 func smokeTest(bin string) error {
 	if err := os.Chmod(bin, 0o755); err != nil {
-		return fmt.Errorf("赋予执行权限: %w", err)
+		return fmt.Errorf("Set executable permissions: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -193,14 +193,14 @@ func smokeTest(bin string) error {
 	cmd.Env = append(os.Environ(), smokeEnv+"=1")
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
-		return errors.New("冒烟测试超时（新二进制无响应）")
+		return errors.New("Smoke test timed out (new binary is unresponsive)")
 	}
 	if err != nil {
 		snippet := strings.TrimSpace(string(out))
 		if len(snippet) > 300 {
 			snippet = snippet[:300] + "…"
 		}
-		return fmt.Errorf("冒烟测试失败: %v: %s", err, snippet)
+		return fmt.Errorf("Smoke test failed: %v: %s", err, snippet)
 	}
 	return nil
 }
@@ -212,17 +212,17 @@ func smokeTest(bin string) error {
 func swap(p Paths) error {
 	// Windows 的 rename 不会覆盖已存在的目标，上一轮升级留下的 .old 必须先清掉。
 	if err := os.Remove(p.Old); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("清理旧备份 %s: %w", p.Old, err)
+		return fmt.Errorf("Remove old backup %s: %w", p.Old, err)
 	}
 	if err := os.Rename(p.Current, p.Old); err != nil {
-		return fmt.Errorf("备份当前版本: %w", err)
+		return fmt.Errorf("Back up current version: %w", err)
 	}
 	if err := os.Rename(p.New, p.Current); err != nil {
 		// 换装失败但当前版本已经被挪走了，必须原样放回去，否则下次启动没有可执行文件。
 		if rerr := os.Rename(p.Old, p.Current); rerr != nil {
-			return fmt.Errorf("装入新版本失败(%v)，且恢复当前版本失败: %w", err, rerr)
+			return fmt.Errorf("Failed to install new version (%v) and restore current version: %w", err, rerr)
 		}
-		return fmt.Errorf("装入新版本: %w", err)
+		return fmt.Errorf("Install new version: %w", err)
 	}
 	_ = os.Remove(p.Sum)
 	return nil
@@ -231,16 +231,16 @@ func swap(p Paths) error {
 // rollback 把 swap 备份的旧版本换回来。
 func rollback(p Paths) error {
 	if _, err := os.Stat(p.Old); err != nil {
-		return fmt.Errorf("没有可回滚的备份 %s: %w", p.Old, err)
+		return fmt.Errorf("No rollback backup %s: %w", p.Old, err)
 	}
 	// 把起不来的新版挪到 .failed 留作排查，而不是直接删掉。
 	failed := p.Current + ".failed"
 	_ = os.Remove(failed)
 	if err := os.Rename(p.Current, failed); err != nil {
-		return fmt.Errorf("移走失败的版本: %w", err)
+		return fmt.Errorf("Move failed version aside: %w", err)
 	}
 	if err := os.Rename(p.Old, p.Current); err != nil {
-		return fmt.Errorf("恢复旧版本: %w", err)
+		return fmt.Errorf("Restore previous version: %w", err)
 	}
 	return nil
 }
@@ -253,24 +253,24 @@ func Rollback() error {
 		return err
 	}
 	if _, err := os.Stat(p.Old); err != nil {
-		return errors.New("没有可回滚的上一版本（" + p.Old + " 不存在）")
+		return errors.New("No previous version for rollback (" + p.Old + " does not exist)")
 	}
 	cleanStaged(p)
 	if err := smokeTest(p.Old); err != nil {
-		return fmt.Errorf("上一版本无法执行，拒绝回滚: %w", err)
+		return fmt.Errorf("Previous version is not executable; refusing rollback: %w", err)
 	}
 	// 交换当前与备份：回滚之后还能再滚回来。
 	tmp := p.Current + ".swap"
 	_ = os.Remove(tmp)
 	if err := os.Rename(p.Current, tmp); err != nil {
-		return fmt.Errorf("移走当前版本: %w", err)
+		return fmt.Errorf("Move current version aside: %w", err)
 	}
 	if err := os.Rename(p.Old, p.Current); err != nil {
 		_ = os.Rename(tmp, p.Current)
-		return fmt.Errorf("装入上一版本: %w", err)
+		return fmt.Errorf("Install previous version: %w", err)
 	}
 	if err := os.Rename(tmp, p.Old); err != nil {
-		log.Printf("[update] 回滚后整理备份失败（不影响运行）：%v", err)
+		log.Printf("[update] failed to tidy backups after rollback (operation unaffected): %v", err)
 	}
 	_ = os.Remove(p.Marker)
 	return nil
@@ -301,7 +301,7 @@ func fileSHA256(path string) (string, error) {
 
 func orUnknown(s string) string {
 	if strings.TrimSpace(s) == "" {
-		return "未知版本"
+		return "Unknown version"
 	}
 	return s
 }
