@@ -73,6 +73,8 @@ The build requires Go 1.26.11 or newer and Node.js 22 or newer.
 Every maintained release lists a digest-pinned Artifact Registry image and its exact
 Cosign verification command on the [Releases](https://github.com/AdverserialAI/artex-attack/releases)
 page. Confidential deployments must use `repository@sha256:...`, never a mutable tag.
+Releases also attach an exact digest-pinned Compose file, machine-readable release
+manifest, and checksums for confidential-runtime measurement policy.
 
 ## First use
 
