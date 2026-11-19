@@ -300,7 +300,10 @@ func configsFromBootstrap(path string) ([]Config, error) {
 		} else if provider.Transport == "agent-proxy" {
 			// Only the fixed sibling address, with any path the provider's API uses.
 			// The request goes straight to it: never through another proxy, never anywhere else.
-			if provider.Endpoint != "" || provider.Model == "adverserial/cyberseek" || !agentModelProxyURL(provider.BaseURL) {
+			// CyberSEEK may be configured this way too: the proxy then hands the request to the
+			// attesting gateway that runs beside it, which verifies the model endpoint before
+			// anything is sent. ARTEX still holds only the local token.
+			if provider.Endpoint != "" || !agentModelProxyURL(provider.BaseURL) {
 				return nil, fmt.Errorf("invalid agent model proxy bootstrap")
 			}
 			proxy = ""
