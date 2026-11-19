@@ -27,7 +27,7 @@ env:
   # The public evidence verifier (dstack-verifier pinned by digest; AdverserialAI/agent-deployment,
   # services/public-verifier). The attestation page sends evidence here from the owner's browser.
   # An owner can enter another verifier on the page.
-  VERIFIER_URL: https://agent-verifier-711745269151.us-central1.run.app/verify
+  VERIFIER_URL: https://attest.adverserial.ai/verify
   WORKLOAD_IDENTITY_PROVIDER: projects/711745269151/locations/global/workloadIdentityPools/github-releases/providers/artex-attack
   PUBLISHER: artex-release-publisher@adverserial-ack-poc.iam.gserviceaccount.com
 
