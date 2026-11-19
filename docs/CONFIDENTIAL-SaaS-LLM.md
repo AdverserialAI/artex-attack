@@ -126,3 +126,10 @@ straight to it. The file it reads holds a local token, not the provider key. The
 proxy holds the real key, adds it to each request, and sends requests only to
 the provider its owner configured. ARTEX can use the model; it cannot read,
 copy or redirect the key.
+
+CyberSEEK can be configured over this transport as well (`"provider": "openai"`,
+`"model": "adverserial/cyberseek"`, `"base_url": "http://model-proxy:8089/v1"`).
+The proxy then passes each request to the attesting gateway that runs beside it
+in the VM, which verifies the model endpoint's hardware evidence and encrypts
+the request to it before anything leaves. Without a transport, CyberSEEK is
+still refused: it is never reached as an ordinary endpoint.

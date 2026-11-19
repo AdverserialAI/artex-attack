@@ -243,6 +243,7 @@ func TestBootstrapAgentProxyKeepsTheProviderKeyOutOfARTEX(t *testing.T) {
 		`"provider":"openai","model":"my-model","base_url":"http://model-proxy:8089/v1"`,
 		`"provider":"anthropic","model":"claude-sonnet-4-5","base_url":"http://model-proxy:8089"`,
 		`"provider":"openai-responses","model":"gpt-4o","base_url":"http://model-proxy:8089/openai/v1"`,
+		`"provider":"openai","model":"adverserial/cyberseek","base_url":"http://model-proxy:8089/v1"`, // the proxy hands it to the attesting gateway beside it
 	} {
 		configs, err := load(`{` + good + `,"transport":"agent-proxy","api_key_file":"` + token + `"}`)
 		if err != nil || len(configs) != 1 || configs[0].Proxy != "" || configs[0].APIKey != "local-token-abcdefghijklmnopqrstuvwxyz" {
@@ -259,7 +260,6 @@ func TestBootstrapAgentProxyKeepsTheProviderKeyOutOfARTEX(t *testing.T) {
 		`"provider":"openai","model":"m","base_url":"http://model-proxy:8089/v1?x=1"`,
 		`"provider":"openai","model":"m","base_url":"http://model-proxy:8089/../v1"`,
 		`"provider":"openai","model":"m","base_url":""`,
-		`"provider":"openai","model":"adverserial/cyberseek","base_url":"http://model-proxy:8089/v1"`, // managed access keeps its own gateway
 	} {
 		if _, err := load(`{` + bad + `,"transport":"agent-proxy","api_key_file":"` + token + `"}`); err == nil {
 			t.Fatalf("accepted an agent proxy bootstrap it must refuse: %s", bad)
