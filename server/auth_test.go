@@ -2,9 +2,13 @@ package server
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // GetSetting 对"键不存在"和"读取出错"的返回值只差一个 error：两种情况 value 都是
@@ -178,5 +182,189 @@ func TestValidatePassword(t *testing.T) {
 				t.Fatalf("validatePassword(%q)=%q, wantErr=%v", tc.pw, got, tc.wantErr)
 			}
 		})
+	}
+}
+
+// finding-64: the JWT must not be accepted from ?token= except on the browser
+// SSE endpoints, where EventSource cannot set an Authorization header. Every
+// JSON API must require the header (or cookie), because URLs leak into browser
+// history, proxy logs and Referer headers.
+func TestQueryTokenOnlyOnStreamPaths(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	s := &Server{jwtKey: key}
+	tok, err := signJWT(s.signingKey())
+	if err != nil {
+		t.Fatalf("sign token: %v", err)
+	}
+	h := s.requireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	do := func(method, target string, bearer bool) int {
+		req := httptest.NewRequest(method, target, nil)
+		if bearer {
+			req.Header.Set("Authorization", "Bearer "+tok)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	for _, tc := range []struct {
+		name   string
+		method string
+		target string
+		bearer bool
+		want   int
+	}{
+		{"header still works on JSON API", "GET", "/api/tasks", true, 204},
+		{"query token rejected on JSON API", "GET", "/api/tasks?token=" + tok, false, 401},
+		{"query token rejected on file download", "GET", "/api/workspace/download?token=" + tok, false, 401},
+		{"query token allowed on logs stream", "GET", "/api/logs/stream?since=0&token=" + tok, false, 204},
+		{"query token rejected on disabled update stream", "GET", "/api/update/stream?token=" + tok, false, 401},
+		{"query token allowed on activity stream", "GET", "/api/exploration/activity/stream?task=1&since=0&token=" + tok, false, 204},
+		{"query token allowed on side-question events", "GET", "/api/side-questions/7/events?token=" + tok, false, 204},
+		{"query token rejected on non-events side route", "GET", "/api/side-questions/7/other?token=" + tok, false, 401},
+		{"query token rejected on nested side path", "GET", "/api/side-questions/7/a/events?token=" + tok, false, 401},
+		{"query token rejected on non-GET", "POST", "/api/logs/stream?token=" + tok, false, 401},
+		{"tampered query token rejected", "GET", "/api/logs/stream?token=" + tok + "x", false, 401},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := do(tc.method, tc.target, tc.bearer); got != tc.want {
+				t.Fatalf("%s %s bearer=%v → %d, want %d", tc.method, tc.target, tc.bearer, got, tc.want)
+			}
+		})
+	}
+}
+
+// finding-64: /api/auth/refresh may rotate the 1-hour access token but must not
+// extend a session beyond the absolute cap, and it must not accept ?token=.
+func TestAuthRefreshEnforcesSessionCap(t *testing.T) {
+	key := []byte("0123456789abcdef0123456789abcdef")
+	s := &Server{jwtKey: key}
+	fresh, err := signJWTSession(key, time.Now())
+	if err != nil {
+		t.Fatalf("sign fresh: %v", err)
+	}
+	stale, err := signJWTSession(key, time.Now().Add(-jwtSessionTTL-time.Minute))
+	if err != nil {
+		t.Fatalf("sign stale: %v", err)
+	}
+	for _, tc := range []struct {
+		name string
+		tok  string
+		want int
+	}{
+		{"fresh session rotates", fresh, 200},
+		{"session past absolute cap", stale, 401},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/api/auth/refresh", nil)
+			req.Header.Set("Authorization", "Bearer "+tc.tok)
+			rec := httptest.NewRecorder()
+			s.authRefresh(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status=%d want %d; body=%s", rec.Code, tc.want, rec.Body.String())
+			}
+			if tc.want != 200 {
+				return
+			}
+			var out struct {
+				Token string `json:"token"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || out.Token == "" {
+				t.Fatalf("refresh must return a token: err=%v body=%s", err, rec.Body.String())
+			}
+			if !verifyJWT(out.Token, key) {
+				t.Fatal("refreshed token does not verify")
+			}
+		})
+	}
+	// EventSource is not used for refresh: the query form must be rejected even
+	// though the endpoint is under /api/auth/ (it validates the token itself).
+	req := httptest.NewRequest("POST", "/api/auth/refresh?token="+fresh, nil)
+	rec := httptest.NewRecorder()
+	s.authRefresh(rec, req)
+	if rec.Code != 401 {
+		t.Fatalf("refresh via ?token= → %d, want 401", rec.Code)
+	}
+}
+
+// finding-64: changing the password must revoke every previously issued token
+// (the token epoch is bumped, the signing key is re-derived) and hand the
+// calling session a new token.
+func TestPasswordChangeRevokesOldTokens(t *testing.T) {
+	m, err := NewManager(t.TempDir(), "")
+	if err != nil {
+		t.Skipf("postgres unavailable (%v)", err)
+	}
+	defer m.Close()
+	pg := m.pg
+	prevHash, hadHash, _ := pg.GetSetting(authPassKey)
+	prevVer, hadVer, _ := pg.GetSetting(authTokenVersionKey)
+	t.Cleanup(func() {
+		if hadHash {
+			_ = pg.SetSetting(authPassKey, prevHash)
+		} else {
+			_, _ = pg.Exec(`DELETE FROM settings WHERE key=$1`, authPassKey)
+		}
+		if hadVer {
+			_ = pg.SetSetting(authTokenVersionKey, prevVer)
+		} else {
+			_, _ = pg.Exec(`DELETE FROM settings WHERE key=$1`, authTokenVersionKey)
+		}
+	})
+
+	const oldPassword = "old password 123"
+	oldHash, err := bcrypt.GenerateFromPassword([]byte(oldPassword), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	if err := pg.SetSetting(authPassKey, string(oldHash)); err != nil {
+		t.Fatalf("seed password: %v", err)
+	}
+	if _, err := pg.Exec(`DELETE FROM settings WHERE key=$1`, authTokenVersionKey); err != nil {
+		t.Fatalf("reset token version: %v", err)
+	}
+
+	s := &Server{m: m, jwtBase: []byte("unit-test-key-0123456789abcdef0123456789abcdef")}
+	s.jwtKey = s.jwtBase
+	oldTok, err := signJWT(s.signingKey())
+	if err != nil {
+		t.Fatalf("sign old token: %v", err)
+	}
+	body := strings.NewReader(`{"old_password":"` + oldPassword + `","new_password":"new password 456"}`)
+	req := httptest.NewRequest("POST", "/api/auth/change-password", body)
+	req.Header.Set("Authorization", "Bearer "+oldTok)
+	rec := httptest.NewRecorder()
+	s.authChangePassword(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status=%d want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if verifyJWT(oldTok, s.signingKey()) {
+		t.Fatal("old token still verifies after the password change")
+	}
+	var out struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || out.Token == "" {
+		t.Fatalf("change-password must return a fresh token: err=%v body=%s", err, rec.Body.String())
+	}
+	if !verifyJWT(out.Token, s.signingKey()) {
+		t.Fatal("fresh token does not verify after the password change")
+	}
+	ver, ok, err := pg.GetSetting(authTokenVersionKey)
+	if err != nil || !ok || strings.TrimSpace(ver) == "" {
+		t.Fatalf("token version not persisted: value=%q ok=%v err=%v", ver, ok, err)
+	}
+}
+
+// finding-64: keep the access-token window short and the absolute session cap
+// finite; a regression to a multi-day TTL must be caught in review/CI.
+func TestJWTWindowsAreShort(t *testing.T) {
+	if jwtTTL > 2*time.Hour {
+		t.Fatalf("jwtTTL=%v: access tokens must stay short (refresh rotates them)", jwtTTL)
+	}
+	if jwtSessionTTL <= jwtTTL {
+		t.Fatalf("jwtSessionTTL=%v must exceed jwtTTL=%v", jwtSessionTTL, jwtTTL)
 	}
 }

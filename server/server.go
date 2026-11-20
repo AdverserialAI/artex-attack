@@ -55,7 +55,13 @@ type Server struct {
 	ctx    context.Context
 
 	skillDir string // root directory for skill subdirectories
-	jwtKey   []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	jwtBase  []byte // raw HS256 key loaded from / generated into <keyDir>/jwt.key
+	jwtKey   []byte // jwtBase derived with tokenVer; rotated on password change
+	// authMu guards jwtKey/tokenVer: requireAuth reads the derived key on every
+	// request while a password change swaps it. Reading jwtKey without it races
+	// with the rotation.
+	authMu   sync.RWMutex
+	tokenVer int64 // persisted token epoch (settings: auth.token_version)
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -166,12 +172,15 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 	if err != nil {
 		log.Fatalf("[auth] JWT key: %v", err)
 	}
-	s := &Server{m: m, engine: NewEngine(m), ctx: ctx, skillDir: skillDir, jwtKey: key, chatBusy: map[string]bool{},
+	s := &Server{m: m, engine: NewEngine(m), ctx: ctx, skillDir: skillDir, jwtKey: key, jwtBase: key, chatBusy: map[string]bool{},
 		chatCancel: map[string]context.CancelCauseFunc{}, triggerQ: map[string][]triggeredRun{},
 		triggerActive: map[string]int{}, triggerCfg: map[string]triggerBehavior{},
 		profChatAgents: map[int64]*agent.ChatAgent{},
 		provByProfile:  map[int64]*provEntry{}, llmHealth: newLLMHealthRegistry(m.pg),
 		taskAgents: map[string]*taskAgentBundle{}, archiveWake: make(chan struct{}, 1)}
+	// Restore the token epoch and derive the signing key from it before any
+	// token can be verified (password changes bump it; see auth.go).
+	s.loadTokenVersion()
 	// 【二开·P-EXEC·S1】engine.providerFn：执行器 agent 的 LLM 装配回调（走 providerForProfile 缓存链）
 	// 非零 id 先调用 providerForProfile 且 ok 才返回；id=0 或构建失败回退全局 Provider。
 	s.engine.providerFn = func(profileID int64) (llm.Provider, agent.Config, bool) {
@@ -836,6 +845,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
+	mux.HandleFunc("POST /api/auth/refresh", s.authRefresh)
 
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/stats", s.stats)

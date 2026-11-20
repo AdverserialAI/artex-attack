@@ -31,6 +31,7 @@ const API_KEYS = [
   "login",
   "initPassword",
   "changePassword",
+  "refresh",
   "tasks",
   "task",
   "createTask",
