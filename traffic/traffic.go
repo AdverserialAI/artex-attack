@@ -186,8 +186,17 @@ type Traffic struct {
 
 // Open initializes the traffic tree, blob store and SQLite index under dir.
 func Open(dir, addr string) (*Traffic, error) {
+	// The store holds plaintext request/response bodies and, under _ca, the MITM
+	// CA private key: everything a local user needs to replay captured credentials
+	// or impersonate arbitrary HTTPS targets. Owner-only is the only correct mode
+	// for either, and it is enforced on an existing tree too — an install created
+	// before this fix keeps whatever umask 022 gave it, so creating with 0700
+	// alone would not repair it.
 	for _, d := range []string{dir, filepath.Join(dir, "_index"), filepath.Join(dir, "_blobs"), filepath.Join(dir, "_ca")} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			return nil, err
+		}
+		if err := os.Chmod(d, 0o700); err != nil {
 			return nil, err
 		}
 	}
@@ -212,6 +221,12 @@ func Open(dir, addr string) (*Traffic, error) {
 		db.Close()
 		return nil, err
 	}
+	// initIndex creates index.sqlite (and VACUUM may already have created its
+	// -wal): both carry plaintext traffic, so tighten them before the first write.
+	if err := t.hardenIndexFiles(); err != nil {
+		db.Close()
+		return nil, err
+	}
 
 	p, err := mproxy.NewProxy(&mproxy.Options{
 		Addr:        addr,
@@ -219,6 +234,12 @@ func Open(dir, addr string) (*Traffic, error) {
 		CaRootPath:  filepath.Join(dir, "_ca"),
 	})
 	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	// NewProxy generates the CA eagerly on a fresh store, and go-mitmproxy writes
+	// mitmproxy-ca.pem (the PRIVATE KEY) with os.Create — 0644 under umask 022.
+	if err := t.hardenCAFiles(); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -365,6 +386,39 @@ func ValidateProxyURL(raw string) (*url.URL, error) {
 // the MITM proxy (go-mitmproxy writes it here on first start).
 func (t *Traffic) CACertPath() string {
 	return filepath.Join(t.dir, "_ca", "mitmproxy-ca-cert.pem")
+}
+
+// hardenIndexFiles forces the SQLite index and its WAL/SHM sidecars to 0600.
+// The driver creates them with the process umask (0644 under the common 022) and
+// they hold every request header plus every body below the spill threshold in
+// plaintext. A missing -wal/-shm is normal on a fresh store: the next write
+// creates it under the umask 077 set by the executable, so it is only an error
+// when an existing file cannot be restricted.
+func (t *Traffic) hardenIndexFiles() error {
+	base := filepath.Join(t.dir, "_index", "index.sqlite")
+	for _, p := range []string{base, base + "-wal", base + "-shm"} {
+		if err := os.Chmod(p, 0o600); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
+// hardenCAFiles restricts the CA material go-mitmproxy writes on first start.
+// mitmproxy-ca.pem embeds the CA PRIVATE KEY: whoever reads it can mint
+// certificates this host's clients trust, so it must be owner-only. _ca is
+// created 0700 before the proxy is built, so the files are already unreachable
+// to other UIDs; this closes the file mode as well. The cert-only exports stay
+// 0644 — they are public by design and are injected into worker trust stores.
+func (t *Traffic) hardenCAFiles() error {
+	if err := os.Chmod(filepath.Join(t.dir, "_ca"), 0o700); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	key := filepath.Join(t.dir, "_ca", "mitmproxy-ca.pem")
+	if err := os.Chmod(key, 0o600); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // Start runs the proxy (blocking); run in a goroutine.
@@ -560,15 +614,26 @@ func (t *Traffic) spill(body []byte, contentType string) storedBody {
 	// One bucket level (256 buckets) is enough to keep any single directory small;
 	// the store only ever holds bodies above maxInlineBody, deduplicated by hash.
 	blobDir := filepath.Join(t.dir, "_blobs", "sha256", h[:2])
-	if err := os.MkdirAll(blobDir, 0o755); err != nil {
+	if err := os.MkdirAll(blobDir, 0o700); err != nil {
 		log.Printf("[traffic] failed to create blob directory: %v", err)
 		return storedBody{inline: clipBytes(body, blobPreview), index: indexText()}
 	}
+	// MkdirAll leaves an existing bucket directory alone; one created before this
+	// fix is still 0755 (unreachable behind the 0700 _blobs, but tightened anyway).
+	if err := os.Chmod(blobDir, 0o700); err != nil {
+		log.Printf("[traffic] failed to restrict blob directory %s: %v", blobDir, err)
+	}
 	blobPath := filepath.Join(blobDir, h+".bin")
 	if _, err := os.Stat(blobPath); os.IsNotExist(err) {
-		if err := os.WriteFile(blobPath, body, 0o644); err != nil {
+		if err := os.WriteFile(blobPath, body, 0o600); err != nil {
 			log.Printf("[traffic] failed to write blob %s: %v", h, err)
 			return storedBody{inline: clipBytes(body, blobPreview), index: indexText()}
+		}
+	} else if err == nil {
+		// A blob stored before this fix is 0644; tighten it in place. Best effort:
+		// failing to narrow an already-deduplicated body must not drop the exchange.
+		if err := os.Chmod(blobPath, 0o600); err != nil {
+			log.Printf("[traffic] failed to restrict blob %s: %v", h, err)
 		}
 	}
 	sb := storedBody{hash: h, index: indexText()}

@@ -5,7 +5,10 @@
  *   - auth: namespace object with getToken/setToken/clearToken/getCurrentUser
  */
 const TOKEN_KEY = "artex_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days (seconds)
+// Mirrors the backend access-token TTL (1 hour). The (main) layout refreshes the
+// token well before expiry and rewrites this cookie; a 7-day cookie would keep
+// the Next route guard passing long after the bearer token itself went stale.
+const COOKIE_MAX_AGE = 60 * 60; // 1 hour (seconds)
 
 export interface CurrentUser {
   id: string;

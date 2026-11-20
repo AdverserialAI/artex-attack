@@ -54,6 +54,12 @@ func main() {
 }
 
 func run() int {
+	// Everything this process creates — the traffic store, MITM CA key material,
+	// SQLite sidecars, task archives — must be owner-only. Set the umask before
+	// the first directory exists so every creation path inherits it, including the
+	// third-party writer that creates mitmproxy-ca.pem and SQLite's own -wal/-shm.
+	applySecureUmask()
+
 	var (
 		addr    = flag.String("addr", ":8787", "HTTP listen address")
 		dataDir = flag.String("data", filepath.Join(config.BaseDir(), "data"), "data directory for SQLite stores (default: data/ next to the executable)")

@@ -91,8 +91,15 @@ export const tasksApi = {
   authStatus: () => get<{ initialized: boolean }>("/auth/status"),
   login: (username: string, password: string) => post<{ token: string }>("/auth/login", { username, password }),
   initPassword: (password: string) => post<{ token: string }>("/auth/init", { password }),
+  // A password change revokes every previously issued token; the response carries
+  // a fresh token so the calling device stays signed in.
   changePassword: (oldPassword: string, newPassword: string) =>
-    post<{ ok: boolean }>("/auth/change-password", { old_password: oldPassword, new_password: newPassword }),
+    post<{ ok: boolean; token?: string; expires_in?: number }>("/auth/change-password", {
+      old_password: oldPassword,
+      new_password: newPassword,
+    }),
+  // Rotates the 1-hour access token (absolute session cap enforced server-side).
+  refresh: () => post<{ token: string; expires_in: number }>("/auth/refresh"),
 
   // ---- tasks ----
   tasks: () =>

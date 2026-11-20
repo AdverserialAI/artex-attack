@@ -1067,7 +1067,8 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   // ── auth: let the demo enter the main UI directly ──
   if (path === "/auth/status") return { initialized: true };
   if (path === "/auth/login" || path === "/auth/init") return { token: "mock-demo" };
-  if (path === "/auth/change-password") return { ok: true };
+  if (path === "/auth/change-password") return { ok: true, token: "mock-demo" };
+  if (path === "/auth/refresh") return { token: "mock-demo", expires_in: 3600 };
 
   // ── task cold archives ──
   if (path === "/task-archives" && m === "GET") {

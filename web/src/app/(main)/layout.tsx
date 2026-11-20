@@ -11,6 +11,7 @@ import * as React from "react";
 
 import { AppSidebar } from "@/app/(main)/_components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { api } from "@/lib/api";
 import { auth } from "@/lib/auth";
 import { getClientCookie } from "@/lib/cookie.client";
 import {
@@ -49,6 +50,36 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
       auth.clearToken();
       window.location.href = "/login";
     }
+  }, []);
+
+  // Access tokens live 1 hour (finding-64). Rotate them every 30 minutes and
+  // whenever the tab becomes visible again, so a long-lived console session
+  // never silently starts 401-ing mid-task. The backend enforces an absolute
+  // session cap, so this refreshes but cannot extend the session indefinitely.
+  React.useEffect(() => {
+    if (!auth.getToken()) return;
+    let stopped = false;
+    const refresh = () => {
+      if (stopped || !auth.getToken()) return;
+      api
+        .refresh()
+        .then(({ token }) => {
+          if (token && !stopped) auth.setToken(token);
+        })
+        .catch(() => {
+          // 401 clears the token and redirects to /login in the http layer.
+        });
+    };
+    const timer = window.setInterval(refresh, 30 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const defaultOpen = typeof document === "undefined" ? true : getClientCookie("sidebar_state") !== "false";
