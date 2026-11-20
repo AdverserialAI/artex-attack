@@ -225,7 +225,16 @@ with handle:
 if not infos:
     fail('archive has no entries')
 
+# macOS 的 bsdtar/GNU tar 会把扩展属性拆成 AppleDouble 文件（平级 ._name）或
+# 放进 __MACOSX/ 目录。这些只是元数据，不是安装内容；先完成路径/类型安全检查，
+# 再整体忽略，既不放宽白名单，也绝不会把它们解包到 /opt/artex。
+def is_apple_metadata(norm):
+    return (posixpath.basename(norm).startswith('._')
+            or '__MACOSX' in norm.split('/'))
+
+
 entries = []
+apple_metadata = 0
 for info in infos:
     raw = info.name
     if any(ch in raw for ch in ('\x00', '\n', '\r', '\\')):
@@ -243,6 +252,9 @@ for info in infos:
         continue
     if norm.startswith('/') or norm == '..' or norm.startswith('../'):
         fail('refusing path escaping the archive root: %r' % raw)
+    if is_apple_metadata(norm):
+        apple_metadata += 1
+        continue
     entries.append((norm, info.isdir()))
 
 if not entries:
@@ -282,8 +294,9 @@ for name, is_dir in entries:
 if not have_binary:
     fail("archive does not contain the 'artex' binary")
 
-print('package validation: %d entries accepted%s' % (
-    len(seen), (' (prefix %r stripped)' % strip) if strip else ''))
+print('package validation: %d entries accepted%s%s' % (
+    len(seen), (' (prefix %r stripped)' % strip) if strip else '',
+    (', %d AppleDouble metadata entries ignored' % apple_metadata) if apple_metadata else ''))
 PY
   ok "Archive manifest validated (allowlist, no links, no traversal)"
 }
@@ -299,6 +312,8 @@ PY
 #   --key <公钥> 时额外强制校验 gpg 分离签名（--sig 或 <包>.sig），失败即中止。
 #   归档成员另行校验：只允许 artex / start.sh / install.sh / config.example.json 与
 #   skills/、scripts/ 子树；拒绝绝对路径、..、软/硬链接、设备/FIFO、setuid 与重复条目。
+#   macOS 构建的包会带 AppleDouble 元数据（平级 ._* 与 __MACOSX/）：这些条目仍先做
+#   路径/链接/类型安全检查，随后整体忽略，不参与白名单与重复检测，也不会被解包。
 #
 # 注意：本脚本【不创建、不管理任何系统服务】（无 systemd unit、无 enable、无自启）。
 # 无论全新部署还是覆盖升级都只装文件；启动/停止/重启由用户自行负责
@@ -316,7 +331,7 @@ install_server(){
       --key)           [ "$#" -ge 2 ] || die "--key requires a value"; key_file="$2"; shift 2 ;;
       --key=*)         key_file="${1#*=}"; shift ;;
       --insecure-skip-verify) skip_verify=1; shift ;;
-      -h|--help)       echo "usage: sudo ./install.sh --server [--sha256 <hex>|--sha256-file <manifest>] [--key <pubkey> [--sig <sig-file>]] [--insecure-skip-verify] [artex-xxx.tar.gz]"; exit 0 ;;
+      -h|--help)       echo "usage: sudo ./install.sh --server [--sha256 <hex>|--sha256-file <manifest>] [--key <pubkey> [--sig <sig-file>]] [--insecure-skip-verify] [artex-xxx.tar.gz]"; echo "       macOS-built packages may contain AppleDouble ._* / __MACOSX entries; they are validated, then ignored and never installed"; exit 0 ;;
       -*)              die "Unknown option:$1" ;;
       *)               [ -z "$pkg" ] || die "Only one deployment package may be given"; pkg="$1"; shift ;;
     esac
@@ -425,7 +440,16 @@ SQL
   install -d -m 700 "$stage"
   # 只解校验过的 root 私有副本；--no-same-owner/--no-same-permissions 避免包内
   # uid/gid 与 setuid 位被带到 /opt/artex，--no-overwrite-dir 不改动已存在目录的权限。
+  # macOS 构建的包可能带 AppleDouble 元数据（._* / __MACOSX/）：成员校验阶段已忽略，
+  # 这里再从暂存区清掉，确保它们不会进入 /opt/artex。
   tar -xzf "$pkg_copy" -C "$stage" --no-same-owner --no-same-permissions --no-overwrite-dir
+  find "$stage" -name '._*' -type f -delete
+  find "$stage" -depth -name '._*' -type d -delete
+  find "$stage" -path '*/__MACOSX/*' -delete
+  find "$stage" -depth -type d -name '__MACOSX' -delete
+  if [ -n "$(find "$stage" \( -name '._*' -o -name '__MACOSX' \) -print -quit)" ]; then
+    die "Package produced AppleDouble metadata after extraction; refusing to install"
+  fi
   # 双保险：即便 tar 行为因版本而异，暂存区也绝不允许出现链接/设备/FIFO。
   if [ -n "$(find "$stage" ! -type d ! -type f -print -quit)" ]; then
     die "Package produced non-regular files after extraction; refusing to install"

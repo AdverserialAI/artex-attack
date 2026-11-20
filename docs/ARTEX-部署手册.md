@@ -25,6 +25,9 @@
 > Windows 上构建：先 `cd web && NEXT_EXPORT=1 npx next build`，`cp -r web/out server/webui/dist`，
 > 再 `ARTEX_SKIP_FRONTEND=1 bash build.sh --target linux/amd64`（npm.cmd 不认 Unix 环境变量语法，rsync 常缺失）。
 
+> macOS 上打 Linux 部署包时，`tar` 会额外写入 AppleDouble 元数据（每个文件旁的 `._name`，实测约 43 条，部分在 `__MACOSX/` 下）。`install.sh --server` 会对这些条目照常做路径/链接/类型安全检查，随后整体忽略，不参与成员白名单、不占用文件名、也绝不会解包进 `/opt/artex`，因此 macOS 产出的 `artex*.tar.gz` 可以直接安装。若要产出不含元数据的干净包，可在打包时禁用：
+> `COPYFILE_DISABLE=1 ./build.sh --target linux/amd64`（bsdtar 也可用 `--no-xattrs`）。
+
 服务器安装（root）：
 
 ```bash
@@ -48,7 +51,7 @@ curl -fsS http://127.0.0.1:8787/ && echo OK
 
 **签名校验（可选，推荐）**：加 `--key <公钥>` 即强制校验 gpg 分离签名；签名文件用 `--sig <文件>` 指定，省略时取 `<包>.sig`。缺签名、公钥导入失败或验签失败都会中止。只给 `--sig` 不给 `--key` 直接报错退出，避免“看起来校验过”。验签需要 `gpg`，其余依赖由脚本自动安装。
 
-包内成员另有白名单：只允许 `artex`、`start.sh`、`install.sh`、`config.example.json` 与 `skills/`、`scripts/` 子树；绝对路径、`..`、软/硬链接、设备/FIFO、setuid 位和重复条目一律拒绝。
+包内成员另有白名单：只允许 `artex`、`start.sh`、`install.sh`、`config.example.json` 与 `skills/`、`scripts/` 子树；绝对路径、`..`、软/硬链接、设备/FIFO、setuid 位和重复条目一律拒绝。macOS 包里的 AppleDouble 元数据（平级 `._*`、`__MACOSX/`）在通过同样的路径/链接/类型检查后被忽略，既不放宽白名单，也不会进入 `/opt/artex`。
 
 > ⚠️ 旁挂 `.sha256` 本身不签名，且与安装包走同一渠道：它能发现传输损坏或拿错文件，但**不能证明来源**——能替换包的人也能替换 `.sha256`。要防替换，必须用 `--key` + 通过独立渠道分发的公钥（当前发布流水线的 cosign 签名只覆盖容器镜像，不覆盖服务器部署包）。
 
@@ -80,6 +83,7 @@ curl -fsS http://127.0.0.1:8787/ && echo OK
 | 启动循环刷 `bind: address already in use` | 8787/8788 被占：`ss -tlnp \| grep 8787` 找到旧进程，按 PID 停掉（勿用朴素 `pkill -f`，会杀掉自身 ssh） |
 | 迁移命令报 `role "root" does not exist` | 没设 `ARTEX_DB_URL`，见《换环境迁移》 |
 | 已有 PG 集群上装 | 注意：脚本会重置 `artex` 角色密码，共用该角色的其他应用会断 |
+| macOS 打的包报 `file not in allowlist: '._.'` | 旧版 `install.sh`；换用当前版本（自动忽略 AppleDouble 元数据），或打包时加 `COPYFILE_DISABLE=1` / `--no-xattrs` |
 
 ## 安全底线
 
