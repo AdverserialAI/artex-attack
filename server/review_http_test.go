@@ -37,9 +37,11 @@ func setupReviewHTTPServer(t *testing.T) (*Server, http.Handler, string, *Task) 
 	}
 	taskID := fmt.Sprintf("%d", dbTask.ID)
 	t.Cleanup(func() {
+		// exploration_anchors keys rows by node_id (no exploration_id column), so
+		// scope through exploration_nodes and delete anchors before their nodes.
+		_, _ = d.Exec(`DELETE FROM exploration_anchors WHERE node_id IN (SELECT id FROM exploration_nodes WHERE exploration_id = $1)`, dbTask.ExplorationID)
 		_, _ = d.Exec(`DELETE FROM exploration_nodes WHERE exploration_id = $1`, dbTask.ExplorationID)
 		_, _ = d.Exec(`DELETE FROM exploration_edges WHERE exploration_id = $1`, dbTask.ExplorationID)
-		_, _ = d.Exec(`DELETE FROM exploration_anchors WHERE exploration_id = $1`, dbTask.ExplorationID)
 		_, _ = d.Exec(`DELETE FROM activity WHERE exploration_id = $1`, dbTask.ExplorationID)
 		_, _ = d.Exec(`DELETE FROM tasks WHERE id = $1`, dbTask.ID)
 		_, _ = d.Exec(`DELETE FROM explorations WHERE id = $1`, dbTask.ExplorationID)
