@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -239,6 +240,9 @@ func (s *Server) toolListLLMProfiles() actool.CoreTool {
 		"List available LLM profiles with ID, name, model, format, and whether each is active. Use the ID as spawn_task's llm_profile_id to assign a task-specific model, such as a cheaper model for reconnaissance or a stronger model for exploitation. API keys are never included.",
 		objSchema(map[string]any{}),
 		func(context.Context, json.RawMessage) (actool.Result, error) {
+			if managed, ok := managedRuntimeModels(); ok {
+				return jsonResult(managed)
+			}
 			profs, err := s.m.pg.ListProfiles()
 			if err != nil {
 				return actool.Errorf(err.Error()), nil
@@ -251,6 +255,37 @@ func (s *Server) toolListLLMProfiles() actool.CoreTool {
 			}
 			return jsonResult(map[string]any{"profiles": out})
 		})
+}
+
+// managedRuntimeModels answers list_llm_profiles inside the confidential runtime,
+// where the deployment's owner connects the model outside ARTEX (CyberSEEK, or
+// their own Anthropic or OpenAI key, with or without a custom endpoint) and
+// profiles are sealed. The profile list is empty there by design, and an
+// orchestration agent that sees only an empty list concludes that nothing can
+// run. So say what is true: which model every task runs on, or that the owner
+// has not connected one yet. Keys and endpoints are never included.
+// managedRuntimeConfigs is the runtime's provider chain; a variable so tests can supply one.
+var managedRuntimeConfigs = agent.ConfigsFromEnv
+
+func managedRuntimeModels() (map[string]any, bool) {
+	if strings.TrimSpace(os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE")) == "" {
+		return nil, false
+	}
+	out := map[string]any{"profiles": []any{}, "managed": true}
+	configs, ok := managedRuntimeConfigs()
+	if !ok || len(configs) == 0 {
+		out["engine_ready"] = false
+		out["note"] = "No model is connected to this deployment yet, so no task can run. The owner connects one from the Agents portal (Connect model). Profiles are not used in this deployment."
+		return out, true
+	}
+	models := make([]map[string]any, 0, len(configs))
+	for i, c := range configs {
+		models = append(models, map[string]any{"model": c.Model, "format": string(c.Format), "role": map[bool]string{true: "active", false: "fallback"}[i == 0]})
+	}
+	out["engine_ready"] = true
+	out["models"] = models
+	out["note"] = "The model is managed by the platform and is ready. Profiles are not used in this deployment: every task, including one created with spawn_task, runs on the model listed here. Do not pass llm_profile_id."
+	return out, true
 }
 
 // resolveSpawnReview preserves an explicitly enabled parent review and otherwise
@@ -433,7 +468,12 @@ func (s *Server) toolSpawnTask() actool.CoreTool {
 			}
 			// LLM profile resolution: explicit id > inherit parent's pin > active(nil).
 			var pin *int64
-			if id := parseProfileID(a.LLMProfileID); id > 0 {
+			if id := parseProfileID(a.LLMProfileID); id > 0 && strings.TrimSpace(os.Getenv("ARTEX_LLM_BOOTSTRAP_FILE")) != "" {
+				// Profiles are sealed in the confidential runtime and every task runs on the
+				// connected model, so a profile id means nothing there. Refusing the whole
+				// task over it would stop work that can run; ignore it instead.
+				log.Printf("[spawn] spawn_task ignored llm_profile_id=%d: the model is managed by the runtime", id)
+			} else if id > 0 {
 				if _, ok := s.loadProfileConfig(id); !ok {
 					return actool.Errorf(fmt.Sprintf("LLM profile #%d does not exist or has no API key", id)), nil
 				}
